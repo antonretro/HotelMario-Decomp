@@ -242,4 +242,9 @@ void     jump_far(uint32_t addr);                  /* jmp out of the function: t
 void     os9_trap(int n, uint32_t code);           /* trap #n followed by a call-number word */
 void     unimpl(uint32_t addr, const char *what);  /* reached code the recompiler couldn't translate */
 
+/* Loops call rt_poll() every 256 backward branches: the runtime feeds disc sectors in real time
+   and delivers OS-9 signals there, like the CD-i's interrupts would. */
+extern unsigned poll_ctr;
+void     rt_poll(void);
+
 #endif

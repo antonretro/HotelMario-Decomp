@@ -206,6 +206,7 @@ static void os9_event(void)
     case 4:   /* Ev$Wait: d0 = id, d2/d3 = range -> d1 = value */
     case 5:   /* Ev$WaitR */
     case 6:   /* Ev$Read */
+        rt_poll();
         cpu.d[1] = (uint32_t)events[cpu.d[0] & 15];
         ok();
         break;
@@ -241,8 +242,9 @@ void os9_trap(int n, uint32_t code)
         fprintf(stderr, "program exited with status %u\n", cpu.d[1] & 0xFFFF);
         exit((int)(cpu.d[1] & 0xFF));
     case 0x07: cpu.d[0] = cpu.d[0] ? cpu.d[0] : 0x2600; cpu.a[1] = DATA_BASE + cpu.d[0]; ok(); break; /* F$Mem */
-    case 0x09: ok(); break;                                            /* F$Icpt: signal handler, kept for later */
-    case 0x0A: cpu.d[0] = 0; ok(); break;                              /* F$Sleep */
+    case 0x09: cdrtos_set_intercept(cpu.a[0], cpu.a[6]); ok(); break;  /* F$Icpt: a0 handler, a6 its data */
+    case 0x0A: rt_poll(); cpu.d[0] = 0; ok(); break;                   /* F$Sleep */
+    case 0x1E: cdrtos_rte(); ok(); break;                              /* F$RTE: end of signal intercept */
     case 0x0C: cpu.d[0] = 2; cpu.d[1] = 0; ok(); break;                /* F$ID */
     case 0x15: {                                                       /* F$Time: Gregorian */
         time_t t = time(0);
@@ -315,6 +317,12 @@ void os9_trap(int n, uint32_t code)
             fseek(p->f, cur, SEEK_SET);
         } else if (p->f && code == 0x8D && fn == 0x05) {               /* SS_Pos */
             cpu.d[2] = (uint32_t)ftell(p->f);
+        } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
+            cdrtos_play(p->f, cpu.a[0]);
+        } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */
+            cdrtos_stop();
+        } else if (code == 0x8E && (fn == 0x33 || fn == 0x37)) {       /* SS_Pause, SS_Cont */
+            cdrtos_pause(fn == 0x33);
         } else {
             /* CD-RTOS device control (display, sound, pointer, disc): logged until the CD-i layer exists */
             fprintf(stderr, "  [cd-i] %s %s fn 0x%x (d2=%x d3=%x a0=%x)\n", code == 0x8D ? "GetStt" : "SetStt",

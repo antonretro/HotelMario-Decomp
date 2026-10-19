@@ -126,10 +126,13 @@ class Func:
     def target(self, i):
         return (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
 
-    def branch_to(self, t, cond="1"):
-        """goto inside this function, tail-call another function, or give up."""
+    def branch_to(self, t, cond="1", here=None):
+        """goto inside this function, tail-call another function, or give up.
+        Backward branches (loops) poll the runtime so disc playback and signals keep running."""
         if t in self.addrs and self.start <= t < self.end:
             self.labels.add(t)
+            if here is not None and t <= here:
+                return f"if ({cond}) {{ if (!(++poll_ctr & 255)) rt_poll(); goto L_{t:x}; }}"
             return f"if ({cond}) goto L_{t:x};"
         if t in self.funcs:
             return f"if ({cond}) {{ {cfn(t)}(); return; }}"
@@ -272,14 +275,14 @@ class Func:
         elif base == "rts":
             out.append("RTS();")
         elif base == "bra" or (base.startswith("b") and base[1:] in CC):
-            out.append(self.branch_to(self.target(i), CC[base[1:]]))
+            out.append(self.branch_to(self.target(i), CC[base[1:]], i.address))
         elif base.startswith("db") and base[2:] in CC:
             r = regexpr(ops[0].reg)
             t = (i.address + 2 + ops[1].br_disp.disp) & 0xFFFFFFFF
             # DBcc exits early when cc is TRUE; dbra/dbf's condition is always false, so it always counts down
             cond = "0" if base[2:] in ("ra", "f") else CC[base[2:]]
             out.append(f"if (!{cond}) {{ uint16_t w = (uint16_t)({r} - 1); setsz(&{r}, w, 2); "
-                       f"{self.branch_to(t, 'w != 0xFFFF')} }}")
+                       f"{self.branch_to(t, 'w != 0xFFFF', i.address)} }}")
         elif base.startswith("s") and base[1:] in CC:
             d = ea(0, 1)
             out.append(d.write(f"({CC[base[1:]]} ? 0xFF : 0)", 1))
@@ -401,6 +404,9 @@ def main():
                 yield False, (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
             elif base.startswith("db") and base[2:] in CC:
                 yield False, (i.address + 2 + i.operands[1].br_disp.disp) & 0xFFFFFFFF
+            elif base == "lea" and i.operands[0].address_mode == K.M68K_AM_PCI_DISP:
+                # code addresses taken with lea xx(pc) are called later (e.g. the signal intercept stub)
+                yield True, (i.address + 2 + i.operands[0].mem.disp) & 0xFFFFFFFF
 
     changed = True
     while changed:

@@ -31,7 +31,10 @@ static const char *name_of(uint32_t addr)
     return best >= 0 ? recomp_table[best].name : "?";
 }
 
-static RecompFn lookup(uint32_t addr)
+RecompFn recomp_lookup(uint32_t addr);
+#define lookup recomp_lookup
+
+RecompFn recomp_lookup(uint32_t addr)
 {
     int lo = 0, hi = recomp_count - 1;
     while (lo <= hi) {
@@ -116,6 +119,29 @@ int main(int argc, char **argv)
     off = (datamod[0x44] << 24) | (datamod[0x45] << 16) | (datamod[0x46] << 8) | datamod[0x47];
     size = (datamod[0x48] << 24) | (datamod[0x49] << 16) | (datamod[0x4a] << 8) | datamod[0x4b];
     memcpy(RAM + DATA_BASE + off, datamod + 0x4c, size);
+
+    /* Relocate pointers in the initialised data, as OS-9 does at load time. After the data come two
+       tables (code references, then data references), each a list of groups:
+       u16 high word, u16 count, count x u16 low word (offsets into the data area); count 0 ends it. */
+    {
+        uint32_t p = 0x4c + size, bases[2] = { 0 /* program is loaded at 0 */, DATA_BASE };
+        int t, fixed[2] = { 0, 0 };
+        for (t = 0; t < 2; t++) {
+            for (;;) {
+                uint32_t hi = (datamod[p] << 8) | datamod[p + 1];
+                uint32_t cnt = (datamod[p + 2] << 8) | datamod[p + 3];
+                p += 4;
+                if (!cnt) break;
+                while (cnt--) {
+                    uint32_t at = DATA_BASE + ((hi << 16) | (datamod[p] << 8) | datamod[p + 1]);
+                    wr32(at, rd32(at) + bases[t]);
+                    fixed[t]++;
+                    p += 2;
+                }
+            }
+        }
+        fprintf(stderr, "relocated %d code and %d data pointers in the initialised data\n", fixed[0], fixed[1]);
+    }
 
     /* OS-9 process start: a3 = module, a6 = data + 0x8000, a5/d5 = parameter string, d6 = memory size */
     memsize = rd32(0x38) + rd32(0x3c);     /* M$Mem (data) + M$Stack */
