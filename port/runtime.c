@@ -119,6 +119,7 @@ int main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--trace")) trace = 1;
         else if (!strcmp(argv[i], "--watch") && i + 1 < argc) watch_pc = (uint32_t)strtoul(argv[++i], 0, 16);
+        else if (!strcmp(argv[i], "--press") && i + 1 < argc) press_every = (unsigned)atoi(argv[++i]);
         else fs_root = argv[i];
     }
 

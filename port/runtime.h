@@ -6,6 +6,7 @@
 
 extern const char *fs_root;   /* folder with the files extracted from your disc */
 extern int trace;
+extern unsigned press_every;
 
 #include <stdio.h>
 #include "m68k.h"

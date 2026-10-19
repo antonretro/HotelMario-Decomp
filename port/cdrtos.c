@@ -8,15 +8,17 @@
  *     +0x00 w  status: 0x01 end of record            +0x00 b  control (bit 7 = error)
  *              0x10 trigger, 0x100 finished,         +0x01 b  submode of the last sector
  *              0x8000 error/end                      +0x03 b  coding of the last sector
- *     +0x02 w  signal to send; error code at end     +0x06 l  next PCL
- *     +0x04 l  number of records to play (0 = all)   +0x0a l  buffer
+ *     +0x02 w  signal to send; error code at end     +0x04 w  signal to send when this buffer is done
+ *     +0x04 l  number of records to play (0 = all)   +0x06 l  next PCL
+ *                                                    +0x0a l  buffer
  *     +0x08 l  channel mask                          +0x0e l  buffer size in sectors
  *     +0x0c w  audio channel mask                    +0x18 l  sectors transferred
  *     +0x0e l  video channel list  (CIL: one PCL pointer per channel)
  *     +0x12 l  audio channel list
  *     +0x16 l  data channel list
  *
- * Each filled buffer is reported with signal 0xFF00|ch (video), 0xFE00|ch (audio), 0xFD00|ch (data);
+ * Each filled buffer is reported with the signal stored in its PCL (the game uses 0xFF00/0xFE00/0xFD00
+ * for video/audio/data plus the index of its channel entry - not the disc channel number);
  * PCB events with the PCB's own signal (0xFC00). The end of play is reported as error 0x60a.
  * Sectors are fed at the real single-speed rate (75 per second) from rt_poll().
  */
@@ -187,8 +189,13 @@ static void feed_sector(void)
         wr8(pcl + 3, ci);
         wr32(pcl + 0x18, ++cnt);
         if (cnt >= bsz || (sm & 0x01)) {          /* buffer full or record ended: move on and report */
+            if (trace)
+                fprintf(stderr, "  [cd-i] ch%d %s pcl %x sig %04x buf %x size %u sectors, filled %u sectors / %u bytes, next %x\n",
+                        ch, base == 0xFF00 ? "video" : base == 0xFE00 ? "audio" : "data", pcl, rd16(pcl + 4), buf, bsz,
+                        cnt, at + size, rd32(pcl + 6));
+            uint16_t sig = (uint16_t)rd16(pcl + 4);  /* the game puts the signal to send in the PCL */
             wr32(list + ch * 4, rd32(pcl + 6));
-            deliver(base | ch);
+            deliver(sig ? sig : (base | ch));
         }
     }
     if (sm & 0x10) pcb_event(0x10);               /* trigger */

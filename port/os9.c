@@ -23,6 +23,7 @@ typedef struct { FILE *f; int device; char name[128]; } Path;
 static Path paths[MAXPATH];
 
 static uint32_t heap = 0x200000;   /* memory handed out by F$SRqMem / F$Link */
+unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
 
 static void ok(void)            { cpu.c = 0; }
 static void fail(uint32_t err)  { cpu.c = 1; cpu.d[1] = err; }
@@ -317,6 +318,14 @@ void os9_trap(int n, uint32_t code)
             fseek(p->f, cur, SEEK_SET);
         } else if (p->f && code == 0x8D && fn == 0x05) {               /* SS_Pos */
             cpu.d[2] = (uint32_t)ftell(p->f);
+        } else if (code == 0x8D && fn == 0x59) {                       /* pointer coordinates (pt_coord) */
+            /* d0.w = buttons, d1 = y << 16 | x. No real input yet: pointer at the centre, and with
+               --press N a button 1 press is simulated for a few polls after every N polls (for testing). */
+            static unsigned polls;
+            polls++;
+            cpu.d[0] = (press_every && polls % press_every < 20) ? 1 : 0;
+            if (cpu.d[0] && polls % press_every == 0) fprintf(stderr, "  [input] simulated button press\n");
+            cpu.d[1] = (140u << 16) | 192u;
         } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
             cdrtos_play(p->f, cpu.a[0]);
         } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */
