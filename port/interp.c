@@ -6,6 +6,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "m68k.h"                          /* the port's CPU state (port/m68k.h) */
 #include "runtime.h"
@@ -54,13 +55,36 @@ static void from_musashi(void)
 static struct { int pending, active; uint32_t sig, handler, data; Cpu saved; unsigned saved_pc; } isig;
 static int rte_requested;
 
+/* Signals wait in a queue, like OS-9's, so a frequent one (the bumper's 50 Hz tick) never pushes out a
+   rare one (its end-of-play signal). The same signal is never queued twice. */
+#define SIGQ 16
+static struct { uint32_t sig, handler, data; } sigq[SIGQ];
+static int sigq_n;
+
+static void next_signal(void)
+{
+    if (isig.pending || isig.active || !sigq_n) return;
+    isig.pending = 1;
+    isig.sig = sigq[0].sig;
+    isig.handler = sigq[0].handler;
+    isig.data = sigq[0].data;
+    memmove(sigq, sigq + 1, (size_t)(--sigq_n) * sizeof sigq[0]);
+}
+
 void interp_signal(uint32_t sig, uint32_t handler, uint32_t data)
 {
-    if (!running || isig.pending || isig.active) return;   /* one at a time, like a masked signal */
-    isig.pending = 1;
-    isig.sig = sig;
-    isig.handler = handler;
-    isig.data = data;
+    int i;
+    if (!running) return;
+    if ((isig.pending || isig.active) && isig.sig == sig) return;
+    for (i = 0; i < sigq_n; i++)
+        if (sigq[i].sig == sig) return;
+    if (sigq_n < SIGQ) {
+        sigq[sigq_n].sig = sig;
+        sigq[sigq_n].handler = handler;
+        sigq[sigq_n].data = data;
+        sigq_n++;
+    }
+    next_signal();
 }
 
 void interp_rte(void)
@@ -94,6 +118,7 @@ int interp_trap(int trap)
         cpu = isig.saved;
         to_musashi();
         m68k_set_reg(M68K_REG_PC, isig.saved_pc);
+        next_signal();                      /* the next queued signal, if any, runs at the next instruction */
         return 1;
     }
     to_musashi();
@@ -106,6 +131,7 @@ void interp_reset(void)
     running = 0;
     done = 0;
     isig.pending = isig.active = 0;
+    sigq_n = 0;
     rte_requested = 0;
 }
 

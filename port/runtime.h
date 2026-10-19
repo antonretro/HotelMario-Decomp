@@ -20,6 +20,7 @@ void interp_signal(uint32_t sig, uint32_t handler, uint32_t data);  /* signal fo
 void interp_rte(void);             /* F$RTE from an interpreted intercept routine */
 void cdrtos_get_intercept(uint32_t *handler, uint32_t *data);
 extern int signal_flag;
+extern uint32_t field_signal;      /* display.c: signal to send every field, 0 = none */
 
 /* cdrtos.c - CD-RTOS real-time playback and signal delivery */
 void cdrtos_set_intercept(uint32_t handler, uint32_t data);

@@ -240,6 +240,7 @@ static void fork_child(void)
         interp_call(m + exec);
     in_child = 0;
     interp_reset();
+    field_signal = 0;                                       /* the child's per-field signal ends with it */
     cdrtos_set_intercept(old_handler, old_data);
     fprintf(stderr, "  [os9] child %s finished\n", name);
     cpu = parent;
@@ -473,6 +474,10 @@ void os9_trap(int n, uint32_t code)
             cpu.d[2] = (uint32_t)ftell(p->f);
         } else if (code == 0x8E && fn == 0x56) {                       /* dc_*: video chip display program */
             display_setstt();
+        } else if (code == 0x8E && fn == 0x59 && (cpu.d[2] & 0xFFFF) == 1 && p->device) {
+            /* video driver: send signal d3 every field (vertical blank) - the bumper's 50 Hz tick (400) */
+            field_signal = cpu.d[3] & 0xFFFF;
+            if (trace) fprintf(stderr, "  [cd-i] field signal %u every frame\n", field_signal);
         } else if (code == 0x8D && fn == 0x59) {                       /* pointer coordinates (pt_coord) */
             /* d0.w = buttons, d1 = y << 16 | x, from the window's keyboard/gamepad state.
                --press N also simulates a button 1 press every N polls (for headless testing). */

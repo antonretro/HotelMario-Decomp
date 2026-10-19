@@ -9,7 +9,8 @@
  *              0x10 trigger, 0x100 finished,         +0x01 b  submode of the last sector
  *              0x8000 error/end                      +0x03 b  coding of the last sector
  *     +0x02 w  signal to send; error code at end     +0x04 w  signal to send when this buffer is done
- *     +0x04 l  number of records to play (0 = all)   +0x06 l  next PCL
+ *     +0x04 l  records left to play (0 = all);       +0x06 l  next PCL
+ *              the drive counts it down per record
  *                                                    +0x0a l  buffer
  *     +0x08 l  channel mask                          +0x0e l  buffer size in sectors
  *     +0x0c w  audio channel mask                    +0x18 l  sectors transferred
@@ -36,7 +37,7 @@
 unsigned poll_ctr;
 
 static struct {
-    int active, paused, stopping;
+    int active, paused, stopping, counted;
     FILE *f;
     uint32_t pcb;
     long sector;
@@ -120,6 +121,7 @@ void cdrtos_play(FILE *f, uint32_t pcb)
     play.pcb = pcb;
     play.sector = ftell(f) / 2048;    /* ds_seek positions with lseek(path, sector << 11) */
     play.eors = 0;
+    play.counted = rd32(pcb + 4) != 0;            /* 0 records = play to the end of the file */
     play.active = 1;
     play.paused = 0;
     play.stopping = 0;
@@ -219,9 +221,12 @@ static void feed_sector(void)
     }
     if (sm & 0x10) pcb_event(0x10);               /* trigger */
     if (sm & 0x01) {                              /* end of record */
-        long want = (long)rd32(pcb + 4);
+        /* The drive counts the PCB's "records to play" down itself before signalling; handlers rely on
+           it (the Philips logo program only starts its fade-out once it reads 0). */
+        uint32_t left = rd32(pcb + 4);
+        if (left) wr32(pcb + 4, --left);
         pcb_event(0x01);
-        if (want && ++play.eors >= want) { end_play(); return; }
+        if (play.counted && !left) { end_play(); return; }
     }
     if (sm & 0x80) end_play();                    /* end of file */
 }
@@ -233,6 +238,14 @@ void rt_poll(void)
     if (trace) {                               /* periodic display summary for headless debugging */
         static clock_t last;
         if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }
+    }
+    if (field_signal && !in_handler) {         /* per-field signal requested from the video driver */
+        static clock_t next_field;
+        clock_t now = clock();
+        if (now >= next_field) {
+            next_field = now + CLOCKS_PER_SEC / 50;
+            deliver(field_signal);
+        }
     }
     if (!play.active || in_handler) return;
     if (play.stopping) {

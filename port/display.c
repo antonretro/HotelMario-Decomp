@@ -48,6 +48,7 @@ static struct {
 } vs;
 
 static unsigned seen[256];
+uint32_t field_signal;      /* dc_ssig: signal to send at the next field (0 = none); sent by cdrtos */
 
 /* Video buffers filled from the disc, with the sector coding they arrived in. A plane whose display
    start points into a buffer that received run-length (RL7, sector format 4) video is decoded as RL7. */
@@ -167,6 +168,12 @@ void display_setstt(void)
             fprintf(stderr, "  [dcp] %s d3=%u d4=%u d5=%x d6=%x at %lu ms\n",
                     (cpu.d[2] & 0xFFFF) == 0x0C ? "flnk" : (cpu.d[2] & 0xFFFF) == 0x0D ? "llnk" : "exec",
                     cpu.d[3] & 0xFFFF, cpu.d[4] & 0xFFFF, cpu.d[5], cpu.d[6], (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        break;
+    case 0x11:                                  /* dc_ssig: signal the program at the next field */
+        if (trace)
+            fprintf(stderr, "  [dcp] ssig d3=%x d4=%x d5=%x d6=%x at %lu ms\n", cpu.d[3], cpu.d[4], cpu.d[5], cpu.d[6],
+                    (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        field_signal = cpu.d[4] & 0xFFFF;
         break;
     default:                                    /* signals etc.: nothing to draw */
         break;
