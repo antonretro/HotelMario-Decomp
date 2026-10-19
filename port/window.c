@@ -85,6 +85,7 @@ static void read_input(void)
 void window_tick(void)
 {
     Uint32 now;
+    os9_tick();
     if (headless || !win) return;
     now = SDL_GetTicks();
     if (now - last_frame < 20) return;   /* 50 Hz, like a PAL CD-i */

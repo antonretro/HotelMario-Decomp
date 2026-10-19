@@ -24,6 +24,23 @@ typedef struct { FILE *f; int device; char name[128]; } Path;
 static Path paths[MAXPATH];
 
 static uint32_t heap = 0x200000;   /* memory handed out by F$SRqMem / F$Link */
+#define HEAP_END 0xF00000u          /* above it: the system globals below */
+
+/* OS-9 system globals. The game reads the tick counter straight from memory instead of calling F$Time,
+   in two ways that only agree if the first long of the globals points back to the globals:
+     cdi_hotel:        _sysglob = *(long *)0;  ticks = *(long *)(*(long *)_sysglob + 0x54)
+     streamed modules: ticks = *(long *)(*(long *)0 + 0x54)
+   Address 0 holds our program's module header, so the globals go where that header long points
+   (0xFC0001, above the heap), with a self-pointer as their first long. */
+static uint32_t sysglob;
+#define D_TICKS 0x54
+#define TICKS_PER_SEC 100
+
+void os9_tick(void)
+{
+    if (sysglob)
+        wr32(sysglob + D_TICKS, (uint32_t)((unsigned long long)clock() * TICKS_PER_SEC / CLOCKS_PER_SEC));
+}
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
 
 static void ok(void)            { cpu.c = 0; }
@@ -33,7 +50,7 @@ static uint32_t alloc(uint32_t size)
 {
     uint32_t p = (heap + 15) & ~15u;
     heap = p + size;
-    if (heap >= RAM_SIZE) { fprintf(stderr, "out of emulated memory\n"); exit(4); }
+    if (heap >= HEAP_END) { fprintf(stderr, "out of emulated memory\n"); exit(4); }
     memset(RAM + p, 0, size);
     return p;
 }
@@ -71,6 +88,10 @@ static int new_path(void)
 void os9_init(void)
 {
     memset(paths, 0, sizeof paths);
+    sysglob = rd32(0) & RAM_MASK;           /* see os9_tick */
+    if (sysglob < HEAP_END) { fprintf(stderr, "system globals would overlap the heap\n"); exit(4); }
+    wr32(sysglob, sysglob);
+    os9_tick();
     paths[0].f = stdin;
     paths[1].f = stdout;
     paths[2].f = stderr;
@@ -376,6 +397,7 @@ void os9_trap(int n, uint32_t code)
         exit(5);
     }
     if (trace) fprintf(stderr, "  [os9] call 0x%02x\n", code);
+    os9_tick();
     switch (code) {
     case 0x00:                                                         /* F$Link */
     case 0x01: link_module(); break;                                   /* F$Load: same, from the disc */
@@ -468,6 +490,20 @@ void os9_trap(int n, uint32_t code)
         Path *p = path_arg();
         uint32_t fn = cpu.d[1] & 0xFFFF;
         if (!p) break;
+        if (trace && code == 0x8D) {                                   /* log each change of status call */
+            static uint32_t last_fn = 0xFFFFFFFF;
+            static Path *last_p;
+            if (fn != last_fn || p != last_p) {
+                uint32_t s;
+                fprintf(stderr, "  [os9] GetStt %s fn 0x%x, code addresses on the stack:", p->name, fn);
+                for (s = cpu.a[7]; s < cpu.a[7] + 0x60; s += 4)
+                    fprintf(stderr, " %x", rd32(s));
+                fprintf(stderr, "\n");
+                interp_dump_history();
+            }
+            last_fn = fn;
+            last_p = p;
+        }
         if (p->f && code == 0x8D && fn == 0x02) {                      /* SS_Size */
             long cur = ftell(p->f);
             fseek(p->f, 0, SEEK_END);

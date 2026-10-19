@@ -1,6 +1,6 @@
-"""Start-up regression test for the PC port: run it headless a few times and check each milestone.
+﻿"""Start-up regression test for the PC port: run it headless a few times and check each milestone.
 
-Usage: python tools/startup_test.py [exe] [runs] [seconds]      (defaults build/port/hotel_dev2.exe 3 40)
+Usage: python tools/startup_test.py [exe] [runs] [seconds]      (defaults build/port/hotel_dev2.exe 3 90)
 
 Milestones, in order:
   logo_play   the Philips logo program streams bumper.rtf to its last sector (624)
@@ -8,6 +8,7 @@ Milestones, in order:
   ff_logo     the game streams the Fantasy Factory logo (sector 12 of the intro data)
   intro_anim  the game reaches the intro animation (sector 80 of intro.rtf)
   intro_more  the game reaches the next intro part (sector 157)
+  intro_end   the intro cartoon streams to its end (sector 3782); the title screen follows
 and that nothing crashed ("stopped:" in the log).
 """
 import os
@@ -22,6 +23,7 @@ CHECKS = [
     ("ff_logo", r"play from sector 12:"),
     ("intro_anim", r"play from sector 80:"),
     ("intro_more", r"play from sector 157:"),
+    ("intro_end", r"end of play[^\n]* at sector 3782"),
 ]
 
 
@@ -46,7 +48,7 @@ def run_once(exe, seconds, n):
 def main():
     exe = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "build", "port", "hotel_dev2.exe")
     runs = int(sys.argv[2]) if len(sys.argv) > 2 else 3
-    seconds = int(sys.argv[3]) if len(sys.argv) > 3 else 40
+    seconds = int(sys.argv[3]) if len(sys.argv) > 3 else 90
     all_ok = True
     for n in range(1, runs + 1):
         results, seq = run_once(exe, seconds, n)

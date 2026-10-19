@@ -13,14 +13,17 @@ extern int headless;                  /* --headless: no window (for automated ru
 #include "m68k.h"
 
 void os9_init(void);
+void os9_tick(void);               /* update the tick counter in the system globals */
 RecompFn recomp_lookup(uint32_t addr);
 void interp_call(uint32_t addr);   /* interp.c: run non-recompiled code on Musashi */
-void interp_reset(void);           /* after a child program left the interpreter via F$Exit */
+void interp_dump_history(void);    /* --trace: last interpreted instructions */
+void interp_reset(void);         /* after a child program left the interpreter via F$Exit */
 void interp_signal(uint32_t sig, uint32_t handler, uint32_t data);  /* signal for interpreted code */
 void interp_rte(void);             /* F$RTE from an interpreted intercept routine */
 void cdrtos_get_intercept(uint32_t *handler, uint32_t *data);
 extern int signal_flag;
-extern uint32_t field_signal;      /* display.c: signal to send every field, 0 = none */
+extern uint32_t field_signal;      /* signal to send every field, 0 = none */
+extern uint32_t once_signal;       /* dc_ssig: signal to send at the next field only, 0 = none */
 
 /* cdrtos.c - CD-RTOS real-time playback and signal delivery */
 void cdrtos_set_intercept(uint32_t handler, uint32_t data);
@@ -38,7 +41,7 @@ void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 
 void display_maybe_dump(void);
 void display_save_tables(void);
 void display_restore_tables(void);
-extern unsigned dump_at_ms;
+extern unsigned dump_at_ms, dump_every_ms;
 
 /* window.c - SDL window, frame pacing and input */
 void window_init(void);

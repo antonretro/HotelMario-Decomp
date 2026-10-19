@@ -276,12 +276,17 @@ void rt_poll(void)
         static clock_t last;
         if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }
     }
-    if (field_signal && !in_handler) {         /* per-field signal requested from the video driver */
+    if ((field_signal || once_signal) && !in_handler) {   /* signals requested from the video driver */
         static clock_t next_field;
         clock_t now = clock();
         if (now >= next_field) {
             next_field = now + CLOCKS_PER_SEC / 50;
-            deliver(field_signal);
+            if (once_signal) {
+                uint32_t sig = once_signal;
+                once_signal = 0;
+                deliver(sig);
+            }
+            if (field_signal) deliver(field_signal);
         }
     }
     if (!play.active || in_handler) return;

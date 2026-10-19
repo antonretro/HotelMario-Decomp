@@ -19,6 +19,7 @@
  * Unknown opcodes are counted (--trace lists them) and otherwise ignored.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -43,12 +44,14 @@ static struct {
     int      coding[2];
     uint32_t clut[256];
     int      bank;
-    uint32_t transp_ctl, transp[2], order, backdrop;
+    uint32_t transp_ctl, transp[2], mask[2], order, backdrop;
+    int transp_set;           /* 0xC1 has been written */
     int      icf[2];            /* 0..63 brightness */
 } vs;
 
 static unsigned seen[256];
-uint32_t field_signal;      /* dc_ssig: signal to send at the next field (0 = none); sent by cdrtos */
+uint32_t field_signal;      /* SetStt 0x59: signal to send every field (0 = none); sent by cdrtos */
+uint32_t once_signal;       /* dc_ssig: signal to send at the next field only (0 = none) */
 
 /* Video buffers filled from the disc, with the sector coding they arrived in. A plane whose display
    start points into a buffer that received run-length (RL7, sector format 4) video is decoded as RL7. */
@@ -120,8 +123,28 @@ static void instr(uint32_t v, int plane)
     int op = (int)(v >> 24);
     uint32_t data = v & 0xFFFFFF;
     seen[op]++;
-    if (op >= 0x80 && op <= 0xBF) { vs.clut[(vs.bank * 64 + (op & 0x3F)) & 255] = data; return; }
+    if (op >= 0x80 && op <= 0xBF) {
+        static int watch = -2;
+        int e = (vs.bank * 64 + (op & 0x3F)) & 255;
+        if (watch == -2) watch = getenv("HM_WATCHCLUT") ? atoi(getenv("HM_WATCHCLUT")) : -1;
+        if (trace && (e == watch || e == watch + 128 || (watch == 999 && e < 128)) && vs.clut[e] != data)
+            fprintf(stderr, "  [dcp] palette %d = %06x (plane %c table, bank %u) at %lu ms\n", e, data, 'A' + plane,
+                    vs.bank, (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        vs.clut[(vs.bank * 64 + (op & 0x3F)) & 255] = data;
+        return;
+    }
     if ((op & 0xF0) == 0x40) { vs.line_addr[plane] = data; return; }
+    if (trace && op >= 0xD0 && op <= 0xD8) {          /* region control / backdrop: log distinct values */
+        static uint32_t seen_rc[64];
+        static int n_rc;
+        int i;
+        for (i = 0; i < n_rc && seen_rc[i] != v; i++) ;
+        if (i == n_rc && n_rc < 64) {
+            seen_rc[n_rc++] = v;
+            fprintf(stderr, "  [dcp] region/backdrop instruction %08x (plane %c) at %lu ms\n", v, 'A' + plane,
+                    (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        }
+    }
     switch (op) {
     case 0xC0:
         /* Image coding for both planes (0 = off). The game's FCT ends with 0x081010 (planes off) and its
@@ -129,11 +152,15 @@ static void instr(uint32_t v, int plane)
         vs.coding[0] = data & 0xF;
         vs.coding[1] = (data >> 8) & 0xF;
         break;
-    case 0xC1: vs.transp_ctl = data; break;
+    case 0xC1: vs.transp_ctl = data; vs.transp_set = 1; break;
     case 0xC2: vs.order = data; break;
     case 0xC3: vs.bank = data & 3; break;
-    case 0xC4: vs.transp[0] = data; break;
+    /* The transparent colour goes to the plane whose table runs the instruction: the game's set_up_clut
+       writes "0xC4 + colour 0 of the palette" into whichever plane's FCT it loads the palette for. */
+    case 0xC4: vs.transp[plane] = data; break;
     case 0xC6: vs.transp[1] = data; break;
+    case 0xC7: vs.mask[0] = data; break;
+    case 0xC9: vs.mask[1] = data; break;
     case 0xCD: vs.backdrop = data; break;
     case 0xDB: vs.icf[0] = data & 0x3F; break;
     case 0xDC: vs.icf[1] = data & 0x3F; break;
@@ -208,11 +235,11 @@ void display_setstt(void)
                     (cpu.d[2] & 0xFFFF) == 0x0C ? "flnk" : (cpu.d[2] & 0xFFFF) == 0x0D ? "llnk" : "exec",
                     cpu.d[3] & 0xFFFF, cpu.d[4] & 0xFFFF, cpu.d[5], cpu.d[6], (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
         break;
-    case 0x11:                                  /* dc_ssig: signal the program at the next field */
+    case 0x11:                                  /* dc_ssig(path, signal, ...): signal the program once, next field */
         if (trace)
             fprintf(stderr, "  [dcp] ssig d3=%x d4=%x d5=%x d6=%x at %lu ms\n", cpu.d[3], cpu.d[4], cpu.d[5], cpu.d[6],
                     (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
-        field_signal = cpu.d[4] & 0xFFFF;
+        once_signal = cpu.d[3] & 0xFFFF;
         break;
     default:                                    /* signals etc.: nothing to draw */
         break;
@@ -277,9 +304,28 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
         int mask = coding == 1 ? 255 : 127, off = coding == 1 ? 0 : clut_off;
         for (x = 0; x < W; x++) rgb[x] = vs.clut[off + ((int)rd8(a + x) & mask)];
     }
+    /* Transparency (MCD212 register 0xC1): a 4-bit condition per plane (A bits 0-3, B bits 8-11).
+       Bits 0-2: 0 always, 1 colour key, 2 transparency bit (RGB555), 3/4 matte flag 0/1, 5/6 matte flag
+       0/1 or colour key; bit 3 inverts it (8 = never transparent). The colour key compares the pixel with
+       the transparent colour register (0xC4 A / 0xC6 B), ignoring the bits set in the mask register
+       (0xC7 / 0xC9) and the 2 low bits of each component, which the 6-bit-per-component CLUT can't hold.
+       Matte flags (region detection) aren't emulated yet: they read as 0. */
+    {
+        uint32_t cond = vs.transp_set ? (vs.transp_ctl >> (p ? 8 : 0)) & 0xF : 8;   /* not set up yet: opaque */
+        uint32_t care = ~vs.mask[p] & 0xFCFCFC, key = vs.transp[p] & care;
+        for (x = 0; x < W; x++) {
+            int t;
+            switch (cond & 7) {
+            case 0: t = 1; break;
+            case 1: case 5: case 6: t = (rgb[x] & care) == key; break;
+            default: t = 0; break;
+            }
+            if (cond & 8) t = !t;
+            opaque[x] = !t;
+        }
+    }
     for (x = 0; x < W; x++) {
         uint32_t c = rgb[x];
-        opaque[x] = !(vs.transp_ctl && c == (vs.transp[p] & 0xFFFFFF));
         if (icf < 63) {                                 /* brightness (fades): scale by icf/63 */
             uint32_t r = ((c >> 16) & 255) * (uint32_t)icf / 63, g = ((c >> 8) & 255) * (uint32_t)icf / 63,
                      b = (c & 255) * (uint32_t)icf / 63;
@@ -306,6 +352,15 @@ void display_render(uint32_t *out)
     vs.icf[0] = vs.icf[1] = 63;
     run_fct(0);
     run_fct(1);
+    if (trace) {                                 /* log each change of the transparency set-up */
+        static uint32_t last[5];
+        uint32_t now[5] = { vs.transp_ctl, vs.transp[0], vs.transp[1], vs.mask[0], vs.mask[1] };
+        if (memcmp(now, last, sizeof now)) {
+            fprintf(stderr, "  [dcp] transparency ctl %06x key A %06x B %06x mask A %06x B %06x, order %06x\n",
+                    now[0], now[1], now[2], now[3], now[4], vs.order);
+            memcpy(last, now, sizeof now);
+        }
+    }
     plane_rl[0] = plane_rl[1] = 0;
     for (y = 0; y < H; y++) {
         uint32_t used[2];
@@ -318,6 +373,14 @@ void display_render(uint32_t *out)
         }
         used[0] = draw_line(0, la, oa);
         used[1] = draw_line(1, lb, ob);
+        if (trace && y == 140) {                 /* sample plane A's top-left pixel source for key debugging */
+            static uint32_t last;
+            uint32_t a = vs.line_addr[0];
+            if (la[4] != last)
+                fprintf(stderr, "  [dcp] line 140: A pixel %06x (byte %02x, coding %x, rl %d, bank %u) B pixel %06x\n",
+                        la[4], rd8(a + 4), vs.coding[0], plane_rl[0], vs.bank, lb[4]);
+            last = la[4];
+        }
         if (only_plane == 1) memset(ob, 0, W);
         if (only_plane == 2) memset(oa, 0, W);
         for (x = 0; x < W; x++) {
@@ -333,13 +396,38 @@ void display_render(uint32_t *out)
 
 /* --dump-at <ms>: write the frame shown at that time, plus each plane alone, as raw RGB for comparisons */
 unsigned dump_at_ms;
+unsigned dump_every_ms;   /* --dump-every <ms>: a timeline of frames, build/port/frames/<ms>.rgb */
 
 void display_maybe_dump(void)
 {
     static int done;
+    static unsigned long next_every;
     static uint32_t f[W * H];
     unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
     int pass;
+    if (dump_every_ms && now >= next_every) {   /* <ms>.rgb = the frame, <ms>_A / _B = each plane alone */
+        char name[64];
+        FILE *o;
+        int i;
+        next_every = now - now % dump_every_ms + dump_every_ms;
+        for (pass = 0; pass < 3; pass++) {
+            snprintf(name, sizeof name, "build/port/frames/%06lu%s.rgb", now - now % dump_every_ms,
+                     pass == 0 ? "" : pass == 1 ? "_A" : "_B");
+            only_plane = pass;
+            display_render(f);
+            only_plane = 0;
+            if ((o = fopen(name, "wb"))) {
+                for (i = 0; i < W * H; i++) {
+                    fputc((int)(f[i] >> 16) & 255, o);
+                    fputc((int)(f[i] >> 8) & 255, o);
+                    fputc((int)f[i] & 255, o);
+                }
+                fclose(o);
+            }
+        }
+        if (trace) fprintf(stderr, "  [dump] timeline frame %lu ms (A %06x coding %x / B %06x coding %x)\n",
+                           now - now % dump_every_ms, vs.line_addr[0], vs.coding[0], vs.line_addr[1], vs.coding[1]);
+    }
     if (dump_at_ms == 1) dump_at_ms = 0, done = 0;   /* F12 in the window: dump right now */
     else if (!dump_at_ms || done || now < dump_at_ms) return;
     done = 1;

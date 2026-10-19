@@ -137,6 +137,20 @@ void interp_reset(void)
 
 static unsigned history[64];
 
+/* --trace: show the last 64 interpreted instructions (to see what a streamed module is waiting for) */
+void interp_dump_history(void)
+{
+    int i;
+    if (!running) return;
+    fprintf(stderr, "  [interp] last instructions:\n");
+    for (i = 1; i <= 64; i++) {
+        unsigned h = history[(hook_count + i) & 63];
+        char buf[100];
+        m68k_disassemble(buf, h, M68K_CPU_TYPE_68000);
+        fprintf(stderr, "    %06x  %s\n", h, buf);
+    }
+}
+
 void interp_hook(unsigned int pc)
 {
     history[hook_count & 63] = pc;
