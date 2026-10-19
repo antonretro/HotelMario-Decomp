@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel Mario Decomp</title>
+<meta name="description" content="Progress of the matching decompilation of Hotel Mario (Philips CD-i, 1994).">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sky1: #120b2e; --sky2: #2a1757; --sky3: #4a2a6e;
+  --brick: #8c2f2b; --brick-dark: #6b2220; --brick-line: #5a1c1a;
+  --trim: #e8b84a; --trim-dark: #b5862a;
+  --door-open: #ffd76a; --door-open-glow: #ffefb0;
+  --door-shut: #5b3a1e; --door-shut-panel: #7a5130;
+  --ink: #fff7e6; --ink-dim: #cdbfe6;
+  --card: rgba(18, 11, 46, .72); --card-line: rgba(232, 184, 74, .35);
+  --neon: #ff4f7b; --neon-glow: rgba(255, 79, 123, .6);
+  --ok: #6be38a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%) fixed;
+  color: var(--ink); font-family: Inter, system-ui, sans-serif; min-height: 100vh;
+}
+.stars { position: fixed; inset: 0; pointer-events: none; background-image:
+  radial-gradient(1px 1px at 10% 20%, #fff8 50%, transparent 51%),
+  radial-gradient(1px 1px at 30% 8%, #fff6 50%, transparent 51%),
+  radial-gradient(1.5px 1.5px at 70% 15%, #fffa 50%, transparent 51%),
+  radial-gradient(1px 1px at 85% 30%, #fff7 50%, transparent 51%),
+  radial-gradient(1px 1px at 55% 5%, #fff5 50%, transparent 51%),
+  radial-gradient(1.5px 1.5px at 20% 40%, #fff6 50%, transparent 51%); }
+.moon { position: fixed; top: 40px; right: 8%; width: 70px; height: 70px; border-radius: 50%;
+  background: #fff3c4; box-shadow: 0 0 40px #fff3c480; pointer-events: none; }
+.moon::after { content: ""; position: absolute; inset: 0 0 0 18px; border-radius: 50%; background: var(--sky1); opacity: .0; }
+main { position: relative; max-width: 1100px; margin: 0 auto; padding: 32px 16px 0; }
+
+/* Neon sign */
+.sign { text-align: center; margin: 12px 0 28px; }
+.sign h1 { font-family: "Press Start 2P", monospace; font-size: clamp(22px, 5vw, 46px); margin: 0; letter-spacing: 2px;
+  color: #fff; text-shadow: 0 0 6px var(--neon), 0 0 18px var(--neon-glow), 0 0 36px var(--neon-glow); animation: flicker 6s infinite; }
+.sign .sub { font-family: "Press Start 2P", monospace; font-size: clamp(9px, 1.6vw, 12px); color: var(--trim); margin-top: 14px; letter-spacing: 1px; }
+@keyframes flicker { 0%, 92%, 100% { opacity: 1 } 93% { opacity: .55 } 94% { opacity: 1 } 96% { opacity: .7 } }
+@media (prefers-reduced-motion: reduce) { .sign h1 { animation: none; } }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 14px 16px; backdrop-filter: blur(4px); }
+.stat .k { font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .08em; }
+.stat .v { font-size: 28px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.stat .s { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+.stat.ok .v { color: var(--ok); font-size: 20px; }
+.bar { height: 10px; border-radius: 5px; background: #ffffff1a; overflow: hidden; margin-top: 10px; }
+.bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--trim), var(--door-open)); }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* Controls */
+.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.controls input { flex: 1 1 220px; background: var(--card); border: 1px solid var(--card-line); color: var(--ink);
+  border-radius: 8px; padding: 10px 12px; font: inherit; }
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--ink-dim); flex-wrap: wrap; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 12px; height: 18px; border-radius: 3px 3px 0 0; display: inline-block; }
+
+/* Hotel */
+.hotel { position: relative; margin: 0 auto; }
+.roof { height: 26px; background: var(--trim); border-radius: 6px 6px 0 0; position: relative;
+  box-shadow: inset 0 -6px 0 var(--trim-dark); }
+.roof::before { content: "HOTEL"; position: absolute; left: 50%; top: -34px; transform: translateX(-50%);
+  font-family: "Press Start 2P", monospace; font-size: 14px; padding: 8px 12px; background: var(--brick-dark);
+  border: 3px solid var(--trim); color: var(--door-open); border-radius: 4px; }
+.body { display: grid; grid-template-columns: 40px 1fr 40px; background:
+  repeating-linear-gradient(0deg, var(--brick) 0 10px, var(--brick-line) 10px 11px),
+  var(--brick); border-left: 6px solid var(--brick-dark); border-right: 6px solid var(--brick-dark); }
+.shaft { background: #1c1430; border-left: 3px solid var(--trim-dark); border-right: 3px solid var(--trim-dark); position: relative; overflow: hidden; }
+.car { position: absolute; left: 3px; right: 3px; height: 54px; background: var(--trim); border-radius: 2px;
+  box-shadow: inset 0 0 0 3px var(--trim-dark); transition: top 2.5s ease-in-out; }
+.floors { display: flex; flex-direction: column; }
+.floor { border-bottom: 8px solid var(--trim-dark); padding: 10px 10px 0; position: relative; }
+.floor .label { position: absolute; left: 8px; top: 6px; font-family: "Press Start 2P", monospace; font-size: 9px;
+  color: var(--trim); background: #0006; padding: 3px 5px; border-radius: 3px; }
+.doors { display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-end; padding: 22px 0 0; }
+.door { width: 14px; height: 24px; border-radius: 7px 7px 0 0; cursor: pointer; position: relative;
+  border: 2px solid var(--trim-dark); border-bottom: 0; padding: 0; }
+.door.asm { background: var(--door-open); box-shadow: 0 0 8px var(--door-open-glow); }
+.door.c { background: linear-gradient(90deg, var(--door-shut) 0 45%, var(--door-shut-panel) 45% 55%, var(--door-shut) 55%); }
+.door.c::after { content: ""; position: absolute; right: 2px; top: 12px; width: 2px; height: 2px; background: var(--trim); border-radius: 50%; }
+.door.dim { opacity: .15; }
+.door:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.lobby { height: 70px; background: var(--brick-dark); display: flex; justify-content: center; align-items: flex-end; gap: 6px;
+  border-left: 6px solid var(--brick-dark); border-right: 6px solid var(--brick-dark); }
+.lobby .entrance { width: 120px; height: 56px; background: linear-gradient(90deg, #2b1d10 0 49%, var(--trim) 49% 51%, #2b1d10 51%);
+  border: 4px solid var(--trim); border-bottom: 0; border-radius: 60px 60px 0 0; }
+.street { height: 14px; background: #2a2440; border-top: 3px solid #4a4260; }
+
+/* Tooltip */
+#tip { position: fixed; pointer-events: none; z-index: 9; background: #0d0820f0; border: 1px solid var(--trim);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5; display: none; max-width: 260px; }
+#tip b { font-family: ui-monospace, Consolas, monospace; color: var(--door-open); font-size: 13px; }
+
+/* About */
+.about { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 28px 0; }
+.about section { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 16px 18px; }
+.about h2 { font-family: "Press Start 2P", monospace; font-size: 12px; color: var(--trim); margin: 0 0 12px; }
+.about p, .about li { font-size: 14px; line-height: 1.6; color: var(--ink-dim); }
+.about ol { padding-left: 18px; margin: 0; }
+.about code { color: var(--door-open); font-size: 12px; }
+@media (max-width: 760px) { .about { grid-template-columns: 1fr; } }
+footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18px 16px 30px; }
+</style>
+</head>
+<body>
+<div class="stars"></div><div class="moon"></div>
+<main>
+  <div class="sign">
+    <h1>HOTEL MARIO</h1>
+    <div class="sub">MATCHING DECOMPILATION · PHILIPS CD-i · 1994</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="k">Decompiled to C</div><div class="v" id="pct">0%</div><div class="bar"><i id="pctbar" style="width:0"></i></div></div>
+    <div class="stat"><div class="k">Doors closed</div><div class="v" id="funcs">0 / 0</div><div class="s">functions in C</div></div>
+    <div class="stat"><div class="k">Disassembled</div><div class="v" id="dis">0%</div><div class="s">real instructions, not raw words</div></div>
+    <div class="stat ok"><div class="k">Build</div><div class="v" id="match">✔ MATCHING</div><div class="s" id="sha"></div></div>
+  </div>
+
+  <div class="controls">
+    <input id="q" type="search" placeholder="Find a room (function name)…" aria-label="Search functions">
+    <div class="legend">
+      <span><i style="background:var(--door-open)"></i> open door = still assembly</span>
+      <span><i style="background:var(--door-shut-panel)"></i> closed door = decompiled to C</span>
+    </div>
+  </div>
+
+  <div class="hotel" id="hotel" style="margin-top:40px">
+    <div class="roof"></div>
+    <div class="body">
+      <div class="shaft"><div class="car" id="carL"></div></div>
+      <div class="floors" id="floors"></div>
+      <div class="shaft"><div class="car" id="carR"></div></div>
+    </div>
+    <div class="lobby"><div class="entrance"></div></div>
+    <div class="street"></div>
+  </div>
+
+  <div class="about">
+    <section>
+      <h2>WHAT IS THIS?</h2>
+      <p>A project to rebuild the source code of <em>Hotel Mario</em> (Fantasy Factory / Philips, 1994) so that it compiles back into
+      the exact same program, byte for byte. Each door is one function from the game's original symbol table. The game is
+      about closing doors, so a door closes when its function is rewritten in C.</p>
+      <p>When the code is decompiled, it can be ported to PC, 3DS and Wii.</p>
+    </section>
+    <section>
+      <h2>HOW IT WORKS</h2>
+      <ol>
+        <li>Read the CD-i disc (CD-RTOS filesystem) from <em>your own</em> disc image</li>
+        <li>Split the OS-9 program <code>cdi_hotel</code> into functions using the original <code>.stb</code> symbols</li>
+        <li>Rebuild with <code>vasm</code> + the OS-9 module CRC and check the SHA1</li>
+        <li>Swap functions from assembly to C one at a time, keeping the build matching</li>
+      </ol>
+      <p>No game data is stored in the repository.</p>
+    </section>
+  </div>
+</main>
+<footer id="foot">Updated —</footer>
+<div id="tip" role="tooltip"></div>
+
+<script src="progress.js"></script>
+<script>
+(function () {
+  const P = window.PROGRESS;
+  if (!P) { document.getElementById("foot").textContent = "progress.js missing - run python tools/progress.py"; return; }
+  const fmt = n => n.toLocaleString("en");
+  const pct = P.bytes_total ? 100 * P.bytes_c / P.bytes_total : 0;
+  document.getElementById("pct").textContent = pct.toFixed(pct < 10 ? 2 : 1) + "%";
+  document.getElementById("pctbar").style.width = pct + "%";
+  document.getElementById("funcs").textContent = `${P.funcs_c} / ${P.funcs_total}`;
+  document.getElementById("dis").textContent = (100 * P.bytes_disassembled / P.bytes_total).toFixed(1) + "%";
+  document.getElementById("sha").textContent = `${P.target.name} (${P.target.region}) · sha1 ${P.target.sha1.slice(0, 12)}…`;
+  if (!P.matching) { const m = document.getElementById("match"); m.textContent = "✘ NOT MATCHING"; m.style.color = "var(--neon)"; }
+  document.getElementById("foot").textContent = `Updated ${P.updated} · ${fmt(P.bytes_c)} of ${fmt(P.bytes_total)} code bytes in C · Not affiliated with Nintendo or Philips.`;
+
+  // Floors: split functions (in address order) into hotel floors, top floor = last addresses
+  const funcs = P.functions.filter(f => f.size > 0);
+  const FLOORS = 8, per = Math.ceil(funcs.length / FLOORS);
+  const floorsEl = document.getElementById("floors");
+  const doors = [];
+  for (let fl = FLOORS - 1; fl >= 0; fl--) {
+    const slice = funcs.slice(fl * per, (fl + 1) * per);
+    if (!slice.length) continue;
+    const done = slice.filter(f => f.status === "c").length;
+    const floor = document.createElement("div");
+    floor.className = "floor";
+    floor.innerHTML = `<span class="label">FLOOR ${fl + 1} · ${done}/${slice.length}</span>`;
+    const row = document.createElement("div");
+    row.className = "doors";
+    for (const f of slice) {
+      const d = document.createElement("button");
+      d.className = "door " + f.status;
+      d.setAttribute("aria-label", `${f.name}, ${f.status === "c" ? "decompiled" : "assembly"}`);
+      d._f = f;
+      row.appendChild(d);
+      doors.push(d);
+    }
+    floor.appendChild(row);
+    floorsEl.appendChild(floor);
+  }
+
+  // Tooltip
+  const tip = document.getElementById("tip");
+  const show = (d, x, y) => {
+    const f = d._f;
+    tip.innerHTML = `<b>${f.name}</b><br>offset 0x${f.addr.toString(16)} · ${fmt(f.size)} bytes<br>` +
+      (f.status === "c" ? "✔ decompiled to C" : "assembly" + (f.raw ? ` · ${f.raw} raw bytes` : ""));
+    tip.style.display = "block";
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.min(x + 14, innerWidth - r.width - 8) + "px";
+    tip.style.top = Math.min(y + 14, innerHeight - r.height - 8) + "px";
+  };
+  floorsEl.addEventListener("mousemove", e => { if (e.target._f) show(e.target, e.clientX, e.clientY); else tip.style.display = "none"; });
+  floorsEl.addEventListener("mouseleave", () => tip.style.display = "none");
+  floorsEl.addEventListener("focusin", e => { if (e.target._f) { const r = e.target.getBoundingClientRect(); show(e.target, r.right, r.bottom); } });
+  floorsEl.addEventListener("focusout", () => tip.style.display = "none");
+
+  // Search
+  document.getElementById("q").addEventListener("input", e => {
+    const q = e.target.value.trim().toLowerCase();
+    for (const d of doors) d.classList.toggle("dim", !!q && !d._f.name.toLowerCase().includes(q));
+  });
+
+  // Elevators drift between floors
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const cars = [document.getElementById("carL"), document.getElementById("carR")];
+  const move = () => {
+    const h = floorsEl.offsetHeight;
+    cars.forEach(c => c.style.top = Math.floor(Math.random() * Math.max(1, h - 54)) + "px");
+  };
+  move();
+  if (!reduce) setInterval(move, 3200);
+})();
+</script>
+</body>
+</html>

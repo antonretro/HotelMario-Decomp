@@ -1,0 +1,10 @@
+# Game data is never committed - users supply their own disc image
+disc/
+build/
+*.bin
+*.cue
+*.chd
+__pycache__/
+tools/ext/
+# generated from your own disc by tools/gen_asm.py
+asm/
