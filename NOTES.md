@@ -7,8 +7,10 @@
   the one game window, driven by the game's own code. No external windows, players or pre-rendered videos;
   `tools/cdi_fmv.py` (MP4) is an offline decoder check only.
 - **Side project: the BIOS-free port** (`port/`) aimed at Wii and 3DS. It reimplements CD-RTOS, so it needs
-  only the user's disc. Status: Philips logo and Fantasy Factory logo run; it stalls before the intro
-  animation, and sound-map (`sm_*`) audio isn't emulated.
+  only the user's disc. Status (2026-10-19): boots with no input through the Philips logo, Fantasy
+  Factory logo and the whole intro cartoon to the title screen, all looking right; the attract demo
+  starts after a while. Not yet checked: gameplay, menus with input, sound (intro speech isn't heard yet;
+  sound-map `sm_*` audio isn't emulated).
 - **Prior art:** [cdirecomp](https://github.com/mstan/cdirecomp) by mstan (R.A.I.D. community) is a CD-i
   static recompiler that runs Hotel Mario into gameplay using a user-supplied CD-i system ROM. It's licensed
   PolyForm Noncommercial, so we don't copy its code; its docs are fine to learn hardware/OS behaviour from.
@@ -95,6 +97,56 @@
 ## Tools
 - `python -I tools/cdi_fs.py list <bin>` lists the files on the disc.
 - `python -I tools/cdi_fs.py extract <bin> build/eu/fs` extracts them. Realtime files are kept as raw 2352-byte sectors.
+
+## Port: how the start-up was made to look right (2026-10-19)
+
+### The Fantasy Factory logo (DYUV decoding)
+Nothing was restored or edited: the logo has always been intact on the disc. It's a full-colour **DYUV**
+still in `intro.rtf` (video sectors 12-79), shown right after the Philips logo. The stripes came from the
+port's DYUV decoder, which got three things wrong:
+
+1. **Nibble order.** DYUV codes a pair of pixels in two bytes: `U delta | Y0 delta`, then
+   `V delta | Y1 delta`. The **high nibble is the colour (chroma) delta and the low nibble the
+   brightness (luma) delta**. The port had them the other way round.
+2. **Wrap-around.** The deltas (table `0, 1, 4, 9, 16, 27, 44, 79, -128, -79, -44, -27, -16, -9, -4, -1`)
+   are added with **8-bit wrap-around (mod 256)**, like the chip's adders, and the encoder relies on it.
+   The port clamped to 0-255, so once a line wrapped, everything after it on that line was off. That gave
+   the horizontal stripes.
+3. **Line start values.** Each line starts from the Y/U/V values in the video chip's DYUV start registers
+   (DCP instructions `0xCA` plane A, `0xCB` plane B, data `Y<<16 | U<<8 | V`), not from fixed numbers.
+
+Fixes are in `port/display.c` (`draw_line`, and `instr` for `0xCA`/`0xCB`).
+To check: `hotel_dev2.exe --headless --dump-at 16000`, which writes `build/port/frame_both.rgb`.
+
+### Getting past the logo (the OS-9 tick counter)
+The game times its waits by reading the OS-9 tick counter straight from memory, not through a system
+call. `cdi_hotel` reads `*(*(long *)_sysglob + 0x54)`, where `_cstart` set `_sysglob = *(long *)0`. The
+streamed code modules read `*(*(long *)0 + 0x54)`. Both agree only if the system globals' first long
+points back to the globals. The port builds that block (`os9_tick` in `port/os9.c`), at the address the
+long at 0 points to, and updates the counter at 100 ticks/s.
+
+### The end of the intro (display signals)
+`cd_nrl` asks the video driver for a signal at the next field (`dc_ssig`, signal code in **d3**) and spins
+until the handler sets `gds+0x498`. The port had read d4 and repeated the signal every field; now it's a
+one-shot (`once_signal`).
+
+### Characters over backgrounds, title logo (plane transparency)
+A CD-i has two image planes. Plane A (front: cartoon, menu text) is see-through wherever its pixel equals
+a **key colour**, so plane B (painted backgrounds, the HOTEL MARIO logo) shows behind it, like a green
+screen. Register `0xC1` holds the rule per plane: A bits 0-3, B bits 8-11. Bits 0-2 are 0 always,
+1 colour key, 2 RGB555 transparency bit, 3/4 matte flag 0/1, 5/6 matte flag or key; bit 3 inverts, so 8
+means never transparent. The game uses `0x800805`: A by key, B never.
+The key is compared ignoring the mask register (`0xC7`/`0xC9`) and the low 2 bits of each component.
+The game's `set_up_clut` writes `0xC4 + palette colour 0` into **the table of the plane whose palette it
+loads**, so the key belongs to the plane whose table runs the instruction. The port used to send every
+`0xC4` to plane A, so plane B's sky colour kept overwriting A's key.
+
+### Debugging aids
+- `--dump-every <ms>` writes `build/port/frames/<ms>.rgb` plus `_A`/`_B` (each plane alone);
+  `python -I tools/contact_sheet.py [out.png] [cols] [_A|_B]` makes a timeline sheet.
+- With `--trace`: GetStt changes with the stack and the last interpreted instructions,
+  transparency/key changes, region values. `HM_WATCHCLUT=<n>` logs writes to palette entry n and n+128
+  (`999` = all of plane A's half).
 
 ## Third-party code used by the port (not in git, fetched into tools/ext)
 - Musashi 68000 core, (c) 1998-2002 Karl Stenerud, MIT licence - runs the code modules streamed from the disc.

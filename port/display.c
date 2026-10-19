@@ -46,6 +46,8 @@ static struct {
     int      bank;
     uint32_t transp_ctl, transp[2], mask[2], order, backdrop;
     int transp_set;           /* 0xC1 has been written */
+    uint32_t dyuv_start[2];   /* 0xCA / 0xCB: Y << 16 | U << 8 | V that each DYUV line starts from */
+    int dyuv_set[2];
     int      icf[2];            /* 0..63 brightness */
 } vs;
 
@@ -159,6 +161,8 @@ static void instr(uint32_t v, int plane)
        writes "0xC4 + colour 0 of the palette" into whichever plane's FCT it loads the palette for. */
     case 0xC4: vs.transp[plane] = data; break;
     case 0xC6: vs.transp[1] = data; break;
+    case 0xCA: vs.dyuv_start[0] = data; vs.dyuv_set[0] = 1; break;   /* DYUV start values Y/U/V per line */
+    case 0xCB: vs.dyuv_start[1] = data; vs.dyuv_set[1] = 1; break;
     case 0xC7: vs.mask[0] = data; break;
     case 0xC9: vs.mask[1] = data; break;
     case 0xCD: vs.backdrop = data; break;
@@ -285,12 +289,19 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
         used = a - s;
     } else if (coding == 5) {                           /* DYUV */
         int Y = 16, U = 128, V = 128;
+        if (vs.dyuv_set[p]) {
+            Y = (int)(vs.dyuv_start[p] >> 16) & 255;
+            U = (int)(vs.dyuv_start[p] >> 8) & 255;
+            V = (int)vs.dyuv_start[p] & 255;
+        }
+        /* Each pixel pair is two bytes: U delta | Y0 delta, then V delta | Y1 delta (high nibble = chroma).
+           The sums wrap modulo 256 like the hardware's 8-bit adders; the encoder relies on that. */
         for (x = 0; x < W; x += 2) {
             int b0 = (int)rd8(a + x), b1 = (int)rd8(a + x + 1), y0;
-            y0 = Y + DQ[b0 >> 4]; y0 = y0 < 0 ? 0 : y0 > 255 ? 255 : y0;
-            U += DQ[b0 & 15]; U = U < 0 ? 0 : U > 255 ? 255 : U;
-            Y = y0 + DQ[b1 >> 4]; Y = Y < 0 ? 0 : Y > 255 ? 255 : Y;
-            V += DQ[b1 & 15]; V = V < 0 ? 0 : V > 255 ? 255 : V;
+            U = (U + DQ[b0 >> 4]) & 255;
+            y0 = (Y + DQ[b0 & 15]) & 255;
+            V = (V + DQ[b1 >> 4]) & 255;
+            Y = (y0 + DQ[b1 & 15]) & 255;
             rgb[x] = yuv(y0, U, V);
             rgb[x + 1] = yuv(Y, U, V);
         }

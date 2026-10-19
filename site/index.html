@@ -162,7 +162,8 @@ footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18
     <h2>BIOS-FREE PORT (SIDE PROJECT)</h2>
     <p class="lead">The main goal of this project is the <b>matching decompilation</b> above. Alongside it, a port that
       needs only your disc (no CD-i BIOS) is being built with Wii and 3DS in mind.
-      <b>Not playable yet</b> - it currently runs the Philips and Fantasy Factory logos.
+      <b>Not playable yet</b> - it now boots by itself through the Philips logo, the Fantasy Factory logo and
+      the whole intro cartoon to the title screen. Gameplay and sound aren't working yet.
       If you want to play Hotel Mario natively today, see
       <a href="https://github.com/mstan/cdirecomp" style="color:var(--door-open)">cdirecomp</a>, a CD-i static
       recompiler that runs it using a CD-i system ROM.
@@ -176,9 +177,10 @@ footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18
       <li><span class="st done">DONE</span><span><b>Window &amp; controls</b>: keyboard and gamepad as the CD-i thumbpad</span></li>
       <li><span class="st done">DONE</span><span><b>Video chip</b>: palettes, DYUV stills, run-length animation, fades, two layered planes</span></li>
       <li><span class="st done">DONE</span><span><b>Philips logo</b>: the original logo program runs and hands back to the game</span></li>
-      <li><span class="st wip">WORKING</span><span><b>Intro</b>: the Fantasy Factory logo shows; it stalls before the intro animation</span></li>
-      <li><span class="st todo">NEXT</span><span><b>Sound maps</b>: the intro's audio goes to memory and is played through the CD-i sound-map calls</span></li>
-      <li><span class="st todo">NEXT</span><span><b>Gameplay</b>: menus, first hotel, saves</span></li>
+      <li><span class="st done">DONE</span><span><b>Intro</b>: Fantasy Factory logo and the intro cartoon, characters layered over the backgrounds</span></li>
+      <li><span class="st done">DONE</span><span><b>Title screen</b>: the HOTEL MARIO logo and menu; the attract demo starts after a while</span></li>
+      <li><span class="st todo">NEXT</span><span><b>Sound</b>: intro speech and music (CD-i sound-map calls)</span></li>
+      <li><span class="st todo">NEXT</span><span><b>Gameplay</b>: menus with input, first hotel, saves</span></li>
       <li><span class="st todo">LATER</span><span><b>Wii and 3DS builds</b> from the same code</span></li>
       <li><span class="st todo">LATER</span><span><b>Full decompilation</b> replacing the translated code with readable C</span></li>
     </ul>
