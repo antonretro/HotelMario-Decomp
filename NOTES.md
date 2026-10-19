@@ -3,6 +3,9 @@
 ## Direction (decided 2026-10-19)
 - **Main goal: a matching decompilation** of `cdi_hotel` (C that rebuilds the original module byte-for-byte),
   then of the streamed code modules. No matching decomp of a CD-i game is known to exist.
+- **Port requirement:** booting the port plays everything (Philips logo, intro cutscenes/FMV, menus, game) inside
+  the one game window, driven by the game's own code. No external windows, players or pre-rendered videos;
+  `tools/cdi_fmv.py` (MP4) is an offline decoder check only.
 - **Side project: the BIOS-free port** (`port/`) aimed at Wii and 3DS. It reimplements CD-RTOS, so it needs
   only the user's disc. Status: Philips logo and Fantasy Factory logo run; it stalls before the intro
   animation, and sound-map (`sm_*`) audio isn't emulated.
