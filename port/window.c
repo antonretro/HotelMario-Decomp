@@ -29,7 +29,8 @@ static SDL_Renderer *ren;
 static SDL_Texture *tex;
 static SDL_GameController *pad;
 static uint32_t frame[W * H];
-static Uint32 last_frame;
+static Uint64 next_frame;
+static int refresh_hz = 60;
 static int ptr_x = W / 2, ptr_y = H / 2, ptr_buttons;
 int headless;
 
@@ -47,6 +48,12 @@ void window_init(void)
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     SDL_RenderSetLogicalSize(ren, W * SCALE, (full_frame ? H : VIS_H) * SCALE);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
+    {   /* redraw at the monitor's refresh rate (60 Hz or more); the game itself keeps its 50 Hz PAL timing */
+        SDL_DisplayMode mode;
+        if (SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(win), &mode) == 0 && mode.refresh_rate >= 50)
+            refresh_hz = mode.refresh_rate;
+        fprintf(stderr, "window redraws at %d Hz\n", refresh_hz);
+    }
     audio_init();
 }
 
@@ -91,12 +98,13 @@ static void read_input(void)
 
 void window_tick(void)
 {
-    Uint32 now;
+    Uint64 now, period;
     os9_tick();
     if (headless || !win) return;
-    now = SDL_GetTicks();
-    if (now - last_frame < 20) return;   /* 50 Hz, like a PAL CD-i */
-    last_frame = now;
+    now = SDL_GetPerformanceCounter();
+    period = SDL_GetPerformanceFrequency() / (Uint64)refresh_hz;
+    if (now < next_frame) return;
+    next_frame = (now - next_frame < period) ? next_frame + period : now + period;   /* steady, no drift */
     read_input();
     display_render(frame);
     SDL_UpdateTexture(tex, 0, frame, W * 4);
