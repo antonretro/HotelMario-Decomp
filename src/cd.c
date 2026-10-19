@@ -46,10 +46,43 @@ int rtf, eors;
     cd_rtf = rtf;
     cd_eors = eors;
     cd_play_flag = 1;
-    if (ds_seek(&myrtf[rtf], 1, &ds_index, mychan) == -1)
+    if (ds_seek(&myrtf[rtf], 1, &ds_index, &mychan) == -1)
         hm_error(1);
-    else if (ds_play(mychan, eors))
+    else if (ds_play(&mychan, eors))
         hm_error(2);
+}
+
+/* 0x13ec: play a palette stream: data into buf_a, video into buf_b (which ends the play) */
+cd_clut(rtf, index, buf_a, buf_b, done)
+int rtf;
+long index;
+char *buf_a, *buf_b;
+int (*done)();
+{
+    termfunc = done;
+    DsEorFunction = 0;
+    ds_buffer_init(&mymem[0], 0, buf_a, 0, 0, 0);
+    ds_buffer_init(&mymem[1], 0, buf_b, 0, cd_terminate, 0);
+    ds_buffer_set_init(&mychan, &mymem[1], 0, &mymem[0]);
+    ds_index = index;
+    cd_retry = 4;
+    seekNplay(rtf, 1);
+}
+
+/* 0x1b52: play an audio/video stream into three buffers (data, then two chained video buffers) */
+cd_av_v(rtf, index, buf_a, buf_b, buf_c)
+int rtf;
+long index;
+char *buf_a, *buf_b, *buf_c;
+{
+    DsEorFunction = 0;
+    ds_buffer_init(&mymem[0], 0, buf_a, 0, 0, 0);
+    ds_buffer_init(&mymem[1], &mymem[2], buf_b, 0, 0, 0);
+    ds_buffer_init(&mymem[2], 0, buf_c, 0, cd_terminate, 0);
+    ds_buffer_set_init(&mychan, &mymem[1], 0, &mymem[0]);
+    ds_index = index;
+    cd_retry = 4;
+    seekNplay(rtf, 2);
 }
 
 /* 0x123c: trigger callback from the play control block */

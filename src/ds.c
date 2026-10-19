@@ -105,10 +105,83 @@ ds_pause()
 ds_dispatcher_init(color)
 int color;
 {
-    DS_dispatch_Q_start = srqcmem(0x80, color);
-    DS_dispatch_Q_end = DS_dispatch_Q_start + 0x78;
+    DS_dispatch_Q_start = (DS_DISPATCH *)srqcmem(0x80, color);
+    DS_dispatch_Q_end = (DS_DISPATCH *)((char *)DS_dispatch_Q_start + 0x78);
     DS_dispatch_Q_head = DS_dispatch_Q_start;
     DS_dispatch_Q_tail = DS_dispatch_Q_start;
+}
+
+/* 0x16b2e: start decoding a run of the stream map. A negative count byte means "the next byte, repeated
+   -n+1 times"; a positive one means "the next n+1 bytes". */
+unsigned char *ds_init_decode(p, d)
+unsigned char *p;
+DS_DECODE *d;
+{
+    short n;
+
+    if ((char)*p < 0) {
+        d->literal = 0;
+        n = -(char)*p;
+    } else {
+        d->literal = 1;
+        n = (char)*p;
+    }
+    d->count = n + 1;
+    d->p = p + 1;
+    return d->p;
+}
+
+/* 0x16b7c: next value from the stream map (a buffer size in sectors) */
+ds_decode_size(d)
+DS_DECODE *d;
+{
+    if (d->count == 0)                          /* run finished: the next count byte follows it */
+        ds_init_decode(d->literal ? d->p : d->p + 1, d);
+    d->count--;
+    if (!d->literal)
+        return *d->p;
+    return *d->p++;
+}
+
+/* 0x16fde..0x17076: a small queue of deferred calls, filled from signal handlers and run from the
+   main loop (ds_dispatch_execute(n) runs up to n of them; 0 empties the queue). */
+ds_dispatch_execute(n)
+int n;
+{
+    int i;
+
+    if (n == 0) {
+        DS_dispatch_Q_head = DS_dispatch_Q_start;
+        DS_dispatch_Q_tail = DS_dispatch_Q_start;
+        return;
+    }
+    for (i = 0; i < n; i++) {
+        if (DS_dispatch_Q_head != DS_dispatch_Q_tail) {
+            (*DS_dispatch_Q_tail->fn)(DS_dispatch_Q_tail->arg);
+            if (++DS_dispatch_Q_tail > DS_dispatch_Q_end)
+                DS_dispatch_Q_tail = DS_dispatch_Q_start;
+        }
+    }
+}
+
+/* 0x17076: queue fn(arg) unless the queue is full */
+ds_dispatch(fn, arg)
+int (*fn)();
+long arg;
+{
+    DS_DISPATCH *next = DS_dispatch_Q_head + 1;
+
+    if (next > DS_dispatch_Q_end) {
+        if (DS_dispatch_Q_tail != DS_dispatch_Q_start) {
+            DS_dispatch_Q_head->fn = fn;
+            DS_dispatch_Q_head->arg = arg;
+            DS_dispatch_Q_head = DS_dispatch_Q_start;
+        }
+    } else if (DS_dispatch_Q_tail != next) {
+        DS_dispatch_Q_head->fn = fn;
+        DS_dispatch_Q_head->arg = arg;
+        DS_dispatch_Q_head = next;
+    }
 }
 
 /* 0x170de: free space on the player's NVRAM, or -1 if there is none */

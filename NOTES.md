@@ -36,7 +36,24 @@
 - Globals are accessed via **a6 biased by 0x8000**. Calls go through `jsr -x(a6)` (a jump table, `_jmptbl`).
 - These match the Microware OS-9/68000 C calling convention.
 
-### Verdict: Microware OS-9/68000 C compiler 3.x (most likely 3.2), not Ultra C
+### Confirmed: Microware OS-9/68000 C compiler 3.2 (from the official 3.2 release notes, ICDIA `os9ccmp.pdf`)
+- The release notes list 12 C functions that were new in 3.2. Eight of them are linked into `cdi_hotel`:
+  `_lcalloc`, `_lfree`, `_lmalloc`, `_lrealloc`, `_mallocmin`, `memmove`, `strtol`, `strtoul`. So it was built
+  with the 3.2 libraries. Together with the pre-Ultra-C library names below, that means **C 3.2**.
+- Official 3.2 tool editions (module edition / CRC), to check that a copy of the compiler is the right one:
+
+  | module | edition | CRC |
+  |---|---|---|
+  | cc | 44 | 033985 |
+  | cpp | 41 | 30C434 |
+  | c68 | 357 | 180F6E |
+  | o68 (optimizer) | 19 | 0E66EF |
+  | r68 (assembler) | 67 | DF2223 |
+  | l68 (linker) | 64 | A3F33B |
+
+  (CRCs are OCR'd from the scan, so read them as close-but-unverified.)
+
+### Earlier evidence: Microware OS-9/68000 C compiler 3.x, not Ultra C
 - The linked library is the 3.x-era `clib.l`. It uses the old OS-9 call names (`_ev_creat`, `_ev_wait`, `_mkdata_module`,
   `intercept`, `os9fork`, `_srqmem`, `_sysdbg`, `_utinit`, `_dumprof`) where Ultra C uses `_os_*`.
 - Float/long helpers are the `_T$...` family (`_T$DAdd`, `_T$LtoA`, `_T$FtoD`, `PackD`, `NormD`), from the 3.x `math.l`.

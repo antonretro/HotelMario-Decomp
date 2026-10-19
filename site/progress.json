@@ -7,9 +7,9 @@
  },
  "matching": true,
  "bytes_total": 93624,
- "bytes_c": 10272,
+ "bytes_c": 11144,
  "funcs_total": 208,
- "funcs_c": 28,
+ "funcs_c": 36,
  "funcs_asmsrc": 34,
  "bytes_disassembled": 92792,
  "functions": [
@@ -115,7 +115,7 @@
    "name": "cd_clut",
    "addr": 5100,
    "size": 126,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -171,7 +171,7 @@
    "name": "cd_av_v",
    "addr": 6994,
    "size": 150,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -318,7 +318,7 @@
    "name": "icf_to_max",
    "addr": 17748,
    "size": 150,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -836,7 +836,7 @@
    "name": "number_of_open_mdir_entries",
    "addr": 61778,
    "size": 86,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1417,14 +1417,14 @@
    "name": "ds_init_decode",
    "addr": 92974,
    "size": 78,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_decode_size",
    "addr": 93052,
    "size": 84,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1452,14 +1452,14 @@
    "name": "ds_dispatch_execute",
    "addr": 94232,
    "size": 94,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_dispatch",
    "addr": 94326,
    "size": 104,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {

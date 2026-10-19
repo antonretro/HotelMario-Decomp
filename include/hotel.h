@@ -19,8 +19,8 @@ typedef struct gds {
     char  unk008[0x10 - 0x8];
     long  afx[17];          /* 0x010: start offsets of the 16 audio effects, plus end marker */
     char  unk054[0x5a - 0x54];
-    int   fct;              /* 0x05a: field control table id */
-    char  unk05e[0x62 - 0x5e];
+    int   fct;              /* 0x05a: field control table id, plane A */
+    int   fct_b;            /* 0x05e: field control table id, plane B */
     int   lct;              /* 0x062: line control table id */
     char  unk066[0x70 - 0x66];
     char *screen;           /* 0x070: frame buffer, 384 bytes per line */
@@ -41,6 +41,35 @@ typedef struct ds_file {
     char  unk08[0x1c - 0x08];
 } DS_FILE;
 
+/* A stream buffer descriptor (0x16 bytes; ds_buffer_init fills it). */
+typedef struct ds_buf {
+    struct ds_buf *next;    /* 0x00: next descriptor in the ring */
+    char  *buf;             /* 0x04: buffer */
+    long   size;            /* 0x08: size in sectors (0 = take it from the map) */
+    int  (*callback)();     /* 0x0c: called when the buffer is done (e.g. cd_terminate) */
+    long   cbarg;           /* 0x10: its argument */
+    char   ctrl, type;      /* 0x14: PCL control / coding byte of the last sector */
+} DS_BUF;
+
+/* A buffer set: the descriptor rings for video, audio and data (ds_buffer_set_init). */
+typedef struct {
+    DS_BUF *video, *audio, *data;
+} DS_BUFSET;
+
+/* Run-length decoder state for the stream maps (ds_init_decode / ds_decode_size). */
+typedef struct {
+    unsigned char *p;       /* 0x00: position in the map */
+    char  unk4;
+    char  literal;          /* 0x05: 1 = run of distinct bytes, 0 = one byte repeated */
+    short count;            /* 0x06: bytes left in this run */
+} DS_DECODE;
+
+/* One entry of the deferred-call queue (ds_dispatch / ds_dispatch_execute). */
+typedef struct {
+    int  (*fn)();
+    long arg;
+} DS_DISPATCH;
+
 /* disc streaming globals */
 extern DS_FILE *DsFile;
 extern short DsPcb;                 /* play control block status; bit 8 = playback finished */
@@ -49,10 +78,11 @@ extern short DsFlags;
 extern int (*DsEorFunction)();
 extern int (*DsTriggerFunction)();
 extern int (*DsErrorFunction)();
-extern char *DS_dispatch_Q_start, *DS_dispatch_Q_end, *DS_dispatch_Q_head, *DS_dispatch_Q_tail;
+extern DS_DISPATCH *DS_dispatch_Q_start, *DS_dispatch_Q_end, *DS_dispatch_Q_head, *DS_dispatch_Q_tail;
 
 extern DS_FILE myrtf[];             /* real-time files of the game, indexed by cd_rtf */
-extern char mychan[];               /* channel selection for ds_play */
+extern DS_BUFSET mychan;            /* buffer set for ds_play */
+extern DS_BUF mymem[3];             /* the three stream buffer descriptors */
 extern long ds_index;
 extern int  cd_rtf, cd_eors, cd_retry;
 extern int (*termfunc)();
@@ -78,6 +108,10 @@ int  ds_play();
 int  seekNplay();
 int  dsTRIGcb();
 int  dsERRORcb();
+int  cd_terminate();
+int  ds_buffer_init();
+int  ds_buffer_set_init();
+unsigned char *ds_init_decode();
 int  dm();
 
 /* CD-i system calls (CD-RTOS bindings) */
@@ -95,6 +129,7 @@ int  dc_wrfi();
 /* OS-9 calls (Microware clib) */
 char *srqcmem();
 int  munlink();
+long _getsys();
 int  _sysdate();
 int  _ev_link();
 int  _ev_wait();
