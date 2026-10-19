@@ -41,6 +41,18 @@
 - `python -I tools/setup.py "<your Hotel Mario (Europe).bin>"` checks the image SHA1, extracts it, generates `asm/` and runs the matching build.
 - Recognised images: EU (supported) and the 1993-11-23 USA beta (recognised, not built yet). No game data goes in git.
 
+## Initialised data and the jump table
+- `cdi_hotel` has an empty IData block. Its initialised data ships as the separate data module `cdi_hotel_data`:
+  at 0x44 is a u32 data offset (0x1880) and a u32 size (0xd80), then the bytes. Relocation lists follow.
+- `_jmptbl` (data 0x231e, called as `jsr -$5ce2(a6)` etc.) is a run of `jmp abs.l` entries in that data. gen_asm reads it and
+  comments each call with its target (`-> fwrite`).
+- Long calls inside the code use `move.l #off,d0; jsr d8(pc,d0.l)`, which gen_asm also resolves.
+
+## Decompiling
+- `src/*.c` holds K&R C for game functions. Check it with `gcc -std=gnu89 -fsyntax-only -Iinclude src/*.c`.
+- With no Microware compiler yet, the build keeps using the asm. C counts as done when it does the same thing as the asm.
+- Game code is 0x36a-0x17122 (208 functions). 34 of them are hand-written asm (no `link.w a5`) and count as done as-is.
+
 ## Module container (`tools/os9mod.py`)
 - Header parity (inverted XOR of the words in 0x00-0x2D) and the module CRC (CRC-24, poly 0x800063) recompute **exactly** for `cdi_hotel` and `.stb`.
 

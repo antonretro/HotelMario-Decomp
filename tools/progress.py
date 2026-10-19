@@ -17,6 +17,18 @@ from stb import parse  # noqa: E402
 
 STB = os.path.join("build", "eu", "fs", "cdi_hotel.stb")
 IDATA_END = 0x1B940  # end of code in cdi_hotel (EU)
+# Game code: after_the_game .. nvr_available. Before it is Microware's cstart; after it the CD-i
+# system bindings, clib and math libraries, which are not ours to decompile.
+GAME_START, GAME_END = 0x36A, 0x17122
+
+
+def handwritten(path):
+    """The C compiler always opens a function with link.w a5; game functions without it were written in assembly."""
+    for line in open(path):
+        s = line.strip()
+        if s and not s.startswith(";") and not s.endswith(":"):
+            return not s.startswith("link.w")
+    return False
 
 
 def c_functions():
@@ -25,7 +37,8 @@ def c_functions():
         for f in files:
             if f.endswith(".c"):
                 txt = open(os.path.join(root, f), errors="replace").read()
-                names |= set(re.findall(r"^\w[\w\s\*]*?\b(\w+)\s*\([^;]*?\)\s*\{", txt, re.M))
+                # a definition starts in column 0 and its line has no ';' (K&R parameter types follow on later lines)
+                names |= set(re.findall(r"^(?:\w+[\s\*]+)*(\w+)\s*\([\w\s,\*]*\)[ \t]*(?:\{[ \t]*)?$", txt, re.M))
     return names
 
 
@@ -39,14 +52,21 @@ def main():
     funcs = []
     for i, (addr, name) in enumerate(code):
         end = code[i + 1][0] if i + 1 < len(code) else IDATA_END
+        if not GAME_START <= addr < GAME_END:
+            continue
         path = os.path.join("asm", "funcs", name + ".s")
         raw = 0
         if os.path.exists(path):
             raw = sum(2 * (l.split(";")[0].count(",") + 1) for l in open(path) if l.strip().startswith("dc.w"))
-        status = "c" if name in in_c and not os.path.exists(path) else "asm"
+        if name in in_c:
+            status = "c"        # equivalent C written; the build still uses the asm until it matches
+        elif os.path.exists(path) and handwritten(path):
+            status = "asmsrc"   # original was hand-written assembly: done as-is
+        else:
+            status = "asm"
         funcs.append({"name": name, "addr": addr, "size": end - addr, "status": status, "raw": raw})
     total = sum(f["size"] for f in funcs)
-    done = sum(f["size"] for f in funcs if f["status"] == "c")
+    done = sum(f["size"] for f in funcs if f["status"] in ("c", "asmsrc"))
     raw = sum(f["raw"] for f in funcs)
     out = {
         "updated": datetime.date.today().isoformat(),
@@ -56,6 +76,7 @@ def main():
         "bytes_c": done,
         "funcs_total": len(funcs),
         "funcs_c": sum(f["status"] == "c" for f in funcs),
+        "funcs_asmsrc": sum(f["status"] == "asmsrc" for f in funcs),
         "bytes_disassembled": total - raw,
         "functions": funcs,
     }
@@ -63,7 +84,8 @@ def main():
     json.dump(out, open(os.path.join("site", "progress.json"), "w"), indent=1)
     with open(os.path.join("site", "progress.js"), "w") as js:  # lets index.html work from file://
         js.write("window.PROGRESS = " + json.dumps(out) + ";\n")
-    print(f"C: {done}/{total} bytes ({100 * done / total:.2f}%), {out['funcs_c']}/{len(funcs)} functions; "
+    print(f"done: {done}/{total} bytes ({100 * done / total:.2f}%), {out['funcs_c']} in C + "
+          f"{out['funcs_asmsrc']} hand-written asm of {len(funcs)} game functions; "
           f"disassembled {100 * (total - raw) / total:.1f}%")
 
 

@@ -113,7 +113,45 @@ def verify(d, insns, tmp):
     return bad
 
 
-def emit(d, insns, bad, code_syms, first, idata, asmdir):
+JMPTBL = {}  # data address -> code offset, from the cdi_hotel_data module
+
+
+def load_jmptbl(path):
+    """cdi_hotel_data carries the program's initialised data: u32 data offset, u32 size, then the bytes.
+    Its jump table is a run of `jmp abs.l` (4EF9) entries whose targets are module offsets."""
+    if not os.path.exists(path):
+        return
+    d = open(path, "rb").read()
+    off, size = struct.unpack(">II", d[0x44:0x4C])
+    blob = d[0x4C:0x4C + size]
+    for i in range(0, size - 5, 2):
+        if blob[i:i + 2] == b"\x4e\xf9":
+            JMPTBL[off + i] = struct.unpack(">I", blob[i + 2:i + 6])[0]
+
+
+def annotate(t, pc, prev, code_syms, data_syms):
+    """Comment text naming globals (a6-relative) and far-call targets (move.l #x,d0 / jsr d8(pc,d0.l))."""
+    notes = []
+    for m in re.finditer(r"(-?)\$([0-9a-f]+)\(a6\)", t or ""):
+        v = (-1 if m.group(1) else 1) * int(m.group(2), 16)
+        jt = JMPTBL.get(v + 0x8000)  # a6 points 0x8000 past the start of the data area
+        if jt is not None:
+            notes.append("-> " + code_syms.get(jt, f"${jt:x}"))
+            continue
+        name = data_syms.get(v & 0xFFFFFFFF)
+        if name:
+            notes.append(name)
+    m = re.match(r"jsr \$([0-9a-f]+)\(pc,d0\.l\)", t or "")
+    if m and prev:
+        k = re.match(r"move\.l #\$([0-9a-f]+),d0", prev)
+        if k:
+            tgt = pc + 2 + int(m.group(1), 16) + int(k.group(1), 16)
+            notes.append("-> " + code_syms.get(tgt, f"${tgt:x}"))
+    return " ".join(notes)
+
+
+def emit(d, insns, bad, code_syms, first, idata, asmdir, data_syms=None):
+    data_syms = data_syms or {}
     os.makedirs(os.path.join(asmdir, "funcs"), exist_ok=True)
     targets = set()
     for pc, size, t in insns:
@@ -132,7 +170,10 @@ def emit(d, insns, bad, code_syms, first, idata, asmdir):
     files = []
     cur = None
     fh = None
+    prev = None
     for pc, size, t in insns:
+        note = annotate(t, pc, prev, code_syms, data_syms)
+        prev = t
         if pc in code_syms:
             if fh:
                 fh.close()
@@ -154,7 +195,7 @@ def emit(d, insns, bad, code_syms, first, idata, asmdir):
             if BRANCH.match(mn):
                 ops = re.sub(r"\$([0-9a-f]+)$", lambda m: label(int(m.group(1), 16))
                              if int(m.group(1), 16) in targets else m.group(0), ops)
-            fh.write(f"    {mn:<8} {ops:<36} ; {pc:06x}\n")
+            fh.write(f"    {mn:<8} {ops:<36} ; {pc:06x}{' ' + note if note else ''}\n")
     fh.close()
 
     with open(os.path.join(asmdir, "cdi_hotel.s"), "w") as m:
@@ -173,13 +214,22 @@ def main():
     idata = struct.unpack(">I", d[0x40:0x44])[0]
     exec_off = struct.unpack(">I", d[0x30:0x34])[0]
     # code starts at the entry point; symbols below it (btext etc.) label the header
-    code_syms = {v: n for v, f, n in parse(stbp) if f & CODE_FLAG and v >= exec_off}
+    syms = parse(stbp)
+    code_syms = {}
+    for v, f, n in syms:  # several names can share an address; keep the first
+        if f & CODE_FLAG and v >= exec_off:
+            code_syms.setdefault(v, n)
+    data_syms = {}
+    for v, f, n in syms:
+        if not f & CODE_FLAG:
+            data_syms.setdefault(v, n)
     first = exec_off
+    load_jmptbl(os.path.join(os.path.dirname(base), "cdi_hotel_data"))
     insns = decode(d, first, idata, code_syms)
     tmp = os.path.join("build", "tmp")
     os.makedirs(tmp, exist_ok=True)
     bad = verify(d, insns, tmp)
-    files = emit(d, insns, bad, code_syms, first, idata, asmdir)
+    files = emit(d, insns, bad, code_syms, first, idata, asmdir, data_syms)
     split = os.path.join("build", "eu", "split")
     os.makedirs(split, exist_ok=True)
     open(os.path.join(split, "header.bin"), "wb").write(d[:first])

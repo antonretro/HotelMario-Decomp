@@ -6,47 +6,13 @@
   "sha1": "3fda0e6da5303b083da70c36c25064d94c025ad6"
  },
  "matching": true,
- "bytes_total": 112878,
- "bytes_c": 0,
- "funcs_total": 482,
- "funcs_c": 0,
- "bytes_disassembled": 111380,
+ "bytes_total": 93624,
+ "bytes_c": 8298,
+ "funcs_total": 208,
+ "funcs_c": 11,
+ "funcs_asmsrc": 34,
+ "bytes_disassembled": 92792,
  "functions": [
-  {
-   "name": "_cstart",
-   "addr": 82,
-   "size": 286,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_stkcheck",
-   "addr": 368,
-   "size": 272,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "stacksiz",
-   "addr": 640,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "freemem",
-   "addr": 650,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "trapinit",
-   "addr": 660,
-   "size": 214,
-   "status": "asm",
-   "raw": 20
-  },
   {
    "name": "after_the_game",
    "addr": 874,
@@ -114,7 +80,7 @@
    "name": "dsTRIGcb",
    "addr": 4668,
    "size": 26,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -135,7 +101,7 @@
    "name": "cd_wait",
    "addr": 4874,
    "size": 26,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -226,7 +192,7 @@
    "name": "sparkle_color_cycle",
    "addr": 7732,
    "size": 136,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -359,7 +325,7 @@
    "name": "vBlankWait",
    "addr": 17898,
    "size": 76,
-   "status": "asm",
+   "status": "c",
    "raw": 2
   },
   {
@@ -471,21 +437,21 @@
    "name": "getAFXsizes",
    "addr": 35766,
    "size": 62,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "playAFX",
    "addr": 35828,
    "size": 60,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "loopAFX",
    "addr": 35888,
    "size": 80,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -534,7 +500,7 @@
    "name": "dead_bein",
    "addr": 42292,
    "size": 12,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -842,7 +808,7 @@
    "name": "dyin_end",
    "addr": 57796,
    "size": 12,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -891,14 +857,14 @@
    "name": "nvram_write",
    "addr": 62204,
    "size": 48,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "nvram_read",
    "addr": 62252,
    "size": 48,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1101,238 +1067,238 @@
    "name": "alpha_move",
    "addr": 82256,
    "size": 58,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "alpha2_move",
    "addr": 82314,
    "size": 70,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "ddm",
    "addr": 82384,
    "size": 110,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "dm",
    "addr": 82494,
    "size": 80,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "kill_star_set_0",
    "addr": 82574,
    "size": 440,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "kill_star_set_clear",
    "addr": 83014,
    "size": 440,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "rm_lu",
    "addr": 83454,
    "size": 78,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "rnd",
    "addr": 83532,
    "size": 22,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_0",
    "addr": 83554,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_1",
    "addr": 83710,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_2",
    "addr": 83866,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_3",
    "addr": 84022,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_4",
    "addr": 84178,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_5",
    "addr": 84334,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_6",
    "addr": 84490,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_7",
    "addr": 84646,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_8",
    "addr": 84802,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_9",
    "addr": 84958,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_number_y_clear",
    "addr": 85114,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_mario_0",
    "addr": 85270,
    "size": 506,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_luigi_0",
    "addr": 85776,
    "size": 422,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_x_y_0",
    "addr": 86198,
    "size": 156,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_time_0",
    "addr": 86354,
    "size": 408,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_coin_0",
    "addr": 86762,
    "size": 218,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_big_clock_0",
    "addr": 86980,
    "size": 506,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "scoring_stage_0",
    "addr": 87486,
    "size": 534,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_0",
    "addr": 88020,
    "size": 264,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_1",
    "addr": 88284,
    "size": 274,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_2",
    "addr": 88558,
    "size": 234,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_3",
    "addr": 88792,
    "size": 278,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_4",
    "addr": 89070,
    "size": 274,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_5",
    "addr": 89344,
    "size": 230,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "sm_f_ball_set_clear",
    "addr": 89574,
    "size": 386,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
    "name": "xy384",
    "addr": 89960,
    "size": 8,
-   "status": "asm",
+   "status": "asmsrc",
    "raw": 0
   },
   {
@@ -1500,1889 +1466,6 @@
    "name": "nvr_available",
    "addr": 94430,
    "size": 68,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_nxt_field",
-   "addr": 94498,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_nxt_eol",
-   "addr": 94526,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_cmp_to",
-   "addr": 94554,
-   "size": 142,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "csd_devname",
-   "addr": 94696,
-   "size": 118,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "csd_devparam",
-   "addr": 94814,
-   "size": 206,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "ss_seek",
-   "addr": 95020,
-   "size": 28,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "ss_play",
-   "addr": 95048,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_abort",
-   "addr": 95060,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_cdda",
-   "addr": 95070,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_pause",
-   "addr": 95086,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_eject",
-   "addr": 95096,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_mount",
-   "addr": 95106,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_disable",
-   "addr": 95118,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_enable",
-   "addr": 95128,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_cont",
-   "addr": 95138,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ss_stop",
-   "addr": 95148,
-   "size": 20,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "ss_raw",
-   "addr": 95168,
-   "size": 28,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "ss_readtoc",
-   "addr": 95196,
-   "size": 26,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "ss_opt",
-   "addr": 95222,
-   "size": 22,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "ss_cchan",
-   "addr": 95244,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gs_opt",
-   "addr": 95254,
-   "size": 18,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gs_size",
-   "addr": 95272,
-   "size": 18,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gs_gcdfd",
-   "addr": 95290,
-   "size": 22,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gs_pos",
-   "addr": 95312,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "__os9err",
-   "addr": 95322,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "__sysret0",
-   "addr": 95334,
-   "size": 6,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "__sysret",
-   "addr": 95340,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gs_eof",
-   "addr": 95348,
-   "size": 24,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gs_path",
-   "addr": 95372,
-   "size": 20,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sd_mmix",
-   "addr": 95392,
-   "size": 46,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sd_smix",
-   "addr": 95438,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sd_loop",
-   "addr": 95450,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sm_creat",
-   "addr": 95458,
-   "size": 42,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sm_out",
-   "addr": 95500,
-   "size": 38,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sm_off",
-   "addr": 95538,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sm_cncl",
-   "addr": 95546,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sm_close",
-   "addr": 95558,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sm_info",
-   "addr": 95566,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sm_stat",
-   "addr": 95600,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sc_atten",
-   "addr": 95634,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_crfct",
-   "addr": 95668,
-   "size": 40,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_crlct",
-   "addr": 95708,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_rdfi",
-   "addr": 95716,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_rdli",
-   "addr": 95724,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_dllct",
-   "addr": 95732,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_dlfct",
-   "addr": 95766,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_relea",
-   "addr": 95774,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_intl",
-   "addr": 95782,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_setcmp",
-   "addr": 95790,
-   "size": 24,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_flnk",
-   "addr": 95814,
-   "size": 42,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_llnk",
-   "addr": 95856,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_wrli",
-   "addr": 95868,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_wrfi",
-   "addr": 95880,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_ssig",
-   "addr": 95888,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_exec",
-   "addr": 95896,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_rdlct",
-   "addr": 95904,
-   "size": 54,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "dc_prdlct",
-   "addr": 95958,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_wrlct",
-   "addr": 95966,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_pwrlct",
-   "addr": 95974,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_rdfct",
-   "addr": 95982,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_wrfct",
-   "addr": 95994,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dc_nop",
-   "addr": 96006,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "pt_coord",
-   "addr": 96016,
-   "size": 64,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "pt_pos",
-   "addr": 96080,
-   "size": 40,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "pt_org",
-   "addr": 96120,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gc_org",
-   "addr": 96128,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gc_pos",
-   "addr": 96136,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gc_show",
-   "addr": 96152,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gc_hide",
-   "addr": 96160,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gc_col",
-   "addr": 96168,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gc_ptn",
-   "addr": 96202,
-   "size": 58,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "gc_blnk",
-   "addr": 96260,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "kb_read",
-   "addr": 96270,
-   "size": 46,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "kb_rdy",
-   "addr": 96316,
-   "size": 32,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "kb_stat",
-   "addr": 96348,
-   "size": 46,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "kb_rel",
-   "addr": 96394,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "kb_repeat",
-   "addr": 96402,
-   "size": 38,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "kb_ssig",
-   "addr": 96440,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "gs_free",
-   "addr": 96450,
-   "size": 148,
-   "status": "asm",
-   "raw": 14
-  },
-  {
-   "name": "os9exec",
-   "addr": 96598,
-   "size": 696,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "modloadp",
-   "addr": 97294,
-   "size": 290,
-   "status": "asm",
-   "raw": 12
-  },
-  {
-   "name": "getenv",
-   "addr": 97584,
-   "size": 442,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fdopen",
-   "addr": 98026,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fopen",
-   "addr": 98054,
-   "size": 58,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "freopen",
-   "addr": 98112,
-   "size": 64,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "printf",
-   "addr": 98176,
-   "size": 76,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fprintf",
-   "addr": 98252,
-   "size": 70,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sprintf",
-   "addr": 98322,
-   "size": 2544,
-   "status": "asm",
-   "raw": 66
-  },
-  {
-   "name": "fread",
-   "addr": 100866,
-   "size": 64,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fwrite",
-   "addr": 100930,
-   "size": 72,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "getc",
-   "addr": 101002,
-   "size": 70,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ungetc",
-   "addr": 101072,
-   "size": 60,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "getw",
-   "addr": 101132,
-   "size": 272,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "putc",
-   "addr": 101404,
-   "size": 170,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "putw",
-   "addr": 101574,
-   "size": 40,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_tidyup",
-   "addr": 101614,
-   "size": 42,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fclose",
-   "addr": 101656,
-   "size": 126,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "fflush",
-   "addr": 101782,
-   "size": 62,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_flsbuf",
-   "addr": 101844,
-   "size": 166,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_setbase",
-   "addr": 102010,
-   "size": 206,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "setbuf",
-   "addr": 102216,
-   "size": 136,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "ftell",
-   "addr": 102352,
-   "size": 104,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strcmp",
-   "addr": 102456,
-   "size": 116,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strlen",
-   "addr": 102572,
-   "size": 30,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strcpy",
-   "addr": 102602,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strcat",
-   "addr": 102630,
-   "size": 30,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strhcpy",
-   "addr": 102660,
-   "size": 22,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strncpy",
-   "addr": 102682,
-   "size": 46,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strncmp",
-   "addr": 102728,
-   "size": 66,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strncat",
-   "addr": 102794,
-   "size": 50,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "index",
-   "addr": 102844,
-   "size": 36,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "rindex",
-   "addr": 102880,
-   "size": 36,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "atoi",
-   "addr": 102916,
-   "size": 34,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strtol",
-   "addr": 102950,
-   "size": 166,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "strtoul",
-   "addr": 103116,
-   "size": 396,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_iobinit",
-   "addr": 103512,
-   "size": 276,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_lmalloc",
-   "addr": 103788,
-   "size": 170,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "malloc",
-   "addr": 103958,
-   "size": 62,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_lrealloc",
-   "addr": 104020,
-   "size": 360,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "realloc",
-   "addr": 104380,
-   "size": 102,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_lfree",
-   "addr": 104482,
-   "size": 54,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "free",
-   "addr": 104536,
-   "size": 60,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_freemin",
-   "addr": 104596,
-   "size": 94,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_mallocmin",
-   "addr": 104690,
-   "size": 310,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "calloc",
-   "addr": 105000,
-   "size": 68,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_lcalloc",
-   "addr": 105068,
-   "size": 168,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "memmove",
-   "addr": 105236,
-   "size": 184,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "toupper",
-   "addr": 105420,
-   "size": 46,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "tolower",
-   "addr": 105466,
-   "size": 44,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "memset",
-   "addr": 105510,
-   "size": 182,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UMul",
-   "addr": 105692,
-   "size": 56,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$LDiv",
-   "addr": 105748,
-   "size": 42,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$LMod",
-   "addr": 105790,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UMod",
-   "addr": 105798,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UDiv",
-   "addr": 105806,
-   "size": 132,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_initarg",
-   "addr": 105938,
-   "size": 132,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_gs_opt",
-   "addr": 106070,
-   "size": 22,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_gs_rdy",
-   "addr": 106092,
-   "size": 26,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_gs_eof",
-   "addr": 106118,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_gs_gfd",
-   "addr": 106152,
-   "size": 20,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_gs_devn",
-   "addr": 106172,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_gs_size",
-   "addr": 106188,
-   "size": 26,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_gs_pos",
-   "addr": 106214,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_opt",
-   "addr": 106228,
-   "size": 22,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_ss_rest",
-   "addr": 106250,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_size",
-   "addr": 106264,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_pfd",
-   "addr": 106280,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_tiks",
-   "addr": 106296,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_lock",
-   "addr": 106312,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_ssig",
-   "addr": 106328,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_rel",
-   "addr": 106344,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_wtrk",
-   "addr": 106358,
-   "size": 34,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_ss_attr",
-   "addr": 106392,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_enrts",
-   "addr": 106408,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_dsrts",
-   "addr": 106422,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_dcon",
-   "addr": 106436,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ss_dcoff",
-   "addr": 106452,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "access",
-   "addr": 106468,
-   "size": 28,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "open",
-   "addr": 106496,
-   "size": 22,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "close",
-   "addr": 106518,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "mknod",
-   "addr": 106534,
-   "size": 22,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "makdir",
-   "addr": 106556,
-   "size": 22,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "create",
-   "addr": 106578,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "creat",
-   "addr": 106606,
-   "size": 84,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "unlinkx",
-   "addr": 106690,
-   "size": 20,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "unlink",
-   "addr": 106710,
-   "size": 20,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "dup",
-   "addr": 106730,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "read",
-   "addr": 106746,
-   "size": 32,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "readln",
-   "addr": 106778,
-   "size": 26,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "write",
-   "addr": 106804,
-   "size": 24,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "writeln",
-   "addr": 106828,
-   "size": 24,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "lseek",
-   "addr": 106852,
-   "size": 70,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "pause",
-   "addr": 106922,
-   "size": 18,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "crc",
-   "addr": 106940,
-   "size": 36,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "prerr",
-   "addr": 106976,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "sleep",
-   "addr": 106992,
-   "size": 6,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "tsleep",
-   "addr": 106998,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_cmpnam",
-   "addr": 107014,
-   "size": 26,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_prsnam",
-   "addr": 107040,
-   "size": 18,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_parsepath",
-   "addr": 107058,
-   "size": 96,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_mkdata_module",
-   "addr": 107154,
-   "size": 54,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_get_module_dir",
-   "addr": 107208,
-   "size": 24,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_get_process_table",
-   "addr": 107232,
-   "size": 24,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_get_process_desc",
-   "addr": 107256,
-   "size": 20,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_setcrc",
-   "addr": 107276,
-   "size": 18,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_getsys",
-   "addr": 107294,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_setsys",
-   "addr": 107308,
-   "size": 26,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "_suspend",
-   "addr": 107334,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "_sysdbg",
-   "addr": 107350,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_cpymem",
-   "addr": 107362,
-   "size": 28,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_ev_creat",
-   "addr": 107390,
-   "size": 42,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_link",
-   "addr": 107432,
-   "size": 34,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_unlink",
-   "addr": 107466,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_delete",
-   "addr": 107478,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_info",
-   "addr": 107492,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_signal",
-   "addr": 107506,
-   "size": 26,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_read",
-   "addr": 107532,
-   "size": 30,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_pulse",
-   "addr": 107562,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_set",
-   "addr": 107572,
-   "size": 10,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_setr",
-   "addr": 107582,
-   "size": 36,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_wait",
-   "addr": 107618,
-   "size": 40,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_ev_waitr",
-   "addr": 107658,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "modlink",
-   "addr": 107670,
-   "size": 32,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "modload",
-   "addr": 107702,
-   "size": 22,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "munlink",
-   "addr": 107724,
-   "size": 22,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "munload",
-   "addr": 107746,
-   "size": 20,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "ebrk",
-   "addr": 107766,
-   "size": 84,
-   "status": "asm",
-   "raw": 8
-  },
-  {
-   "name": "ibrk",
-   "addr": 107850,
-   "size": 48,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "sbrk",
-   "addr": 107898,
-   "size": 74,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_srqmem",
-   "addr": 107972,
-   "size": 26,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "_srtmem",
-   "addr": 107998,
-   "size": 22,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "setime",
-   "addr": 108020,
-   "size": 62,
-   "status": "asm",
-   "raw": 12
-  },
-  {
-   "name": "getime",
-   "addr": 108082,
-   "size": 70,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_sysdate",
-   "addr": 108152,
-   "size": 56,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_julian",
-   "addr": 108208,
-   "size": 36,
-   "status": "asm",
-   "raw": 8
-  },
-  {
-   "name": "kill",
-   "addr": 108244,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "wait",
-   "addr": 108260,
-   "size": 34,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "setpr",
-   "addr": 108294,
-   "size": 16,
-   "status": "asm",
-   "raw": 2
-  },
-  {
-   "name": "chainc",
-   "addr": 108310,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "chain",
-   "addr": 108326,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "os9forkc",
-   "addr": 108342,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "os9fork",
-   "addr": 108358,
-   "size": 76,
-   "status": "asm",
-   "raw": 14
-  },
-  {
-   "name": "intercept",
-   "addr": 108434,
-   "size": 40,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "srqcmem",
-   "addr": 108474,
-   "size": 36,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "modcload",
-   "addr": 108510,
-   "size": 44,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "make_module",
-   "addr": 108554,
-   "size": 52,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "sigmask",
-   "addr": 108606,
-   "size": 32,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_sysret",
-   "addr": 108638,
-   "size": 2,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_os9err",
-   "addr": 108640,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_sysret0",
-   "addr": 108648,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "exit",
-   "addr": 108662,
-   "size": 16,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "abort",
-   "addr": 108678,
-   "size": 6,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_exit",
-   "addr": 108684,
-   "size": 10,
-   "status": "asm",
-   "raw": 6
-  },
-  {
-   "name": "_utinit",
-   "addr": 108694,
-   "size": 6,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_dumprof",
-   "addr": 108700,
-   "size": 2,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$LtoA",
-   "addr": 108702,
-   "size": 22,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UtoA",
-   "addr": 108724,
-   "size": 68,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FtoA",
-   "addr": 108792,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DtoA",
-   "addr": 108806,
-   "size": 604,
-   "status": "asm",
-   "raw": 78
-  },
-  {
-   "name": "Tens16",
-   "addr": 109410,
-   "size": 304,
-   "status": "asm",
-   "raw": 164
-  },
-  {
-   "name": "TensTbl",
-   "addr": 109714,
-   "size": 144,
-   "status": "asm",
-   "raw": 50
-  },
-  {
-   "name": "_T$LtoF",
-   "addr": 109858,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UtoF",
-   "addr": 109872,
-   "size": 14,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FtoL",
-   "addr": 109886,
-   "size": 18,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FtoU",
-   "addr": 109904,
-   "size": 18,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FTrn",
-   "addr": 109922,
-   "size": 34,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FInt",
-   "addr": 109956,
-   "size": 20,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DInt",
-   "addr": 109976,
-   "size": 124,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$FtoD",
-   "addr": 110100,
-   "size": 32,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DtoF",
-   "addr": 110132,
-   "size": 66,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DSub",
-   "addr": 110198,
-   "size": 8,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DAdd",
-   "addr": 110206,
-   "size": 380,
-   "status": "asm",
-   "raw": 4
-  },
-  {
-   "name": "_T$DDec",
-   "addr": 110586,
-   "size": 346,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DInc",
-   "addr": 110932,
-   "size": 320,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DMul",
-   "addr": 111252,
-   "size": 470,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DDiv",
-   "addr": 111722,
-   "size": 434,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DCmp",
-   "addr": 112156,
-   "size": 58,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DNeg",
-   "addr": 112214,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$LtoD",
-   "addr": 112226,
-   "size": 48,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$UtoD",
-   "addr": 112274,
-   "size": 12,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DtoL",
-   "addr": 112286,
-   "size": 52,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DtoU",
-   "addr": 112338,
-   "size": 98,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "_T$DTrn",
-   "addr": 112436,
-   "size": 120,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "NormD",
-   "addr": 112556,
-   "size": 224,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "UPackF",
-   "addr": 112780,
-   "size": 28,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "UPackD",
-   "addr": 112808,
-   "size": 54,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "PackF",
-   "addr": 112862,
-   "size": 26,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "PackD",
-   "addr": 112888,
-   "size": 3932,
-   "status": "asm",
-   "raw": 0
-  },
-  {
-   "name": "etext",
-   "addr": 116820,
-   "size": -3860,
    "status": "asm",
    "raw": 0
   }
