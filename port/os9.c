@@ -365,8 +365,10 @@ void os9_trap(int n, uint32_t code)
         } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
             cdrtos_play(p->f, cpu.a[0]);
         } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */
+            if (trace) fprintf(stderr, "  [cd-i] %s %s\n", fn == 0x31 ? "abort" : "stop", p->name);
             cdrtos_stop();
         } else if (code == 0x8E && (fn == 0x33 || fn == 0x37)) {       /* SS_Pause, SS_Cont */
+            if (trace) fprintf(stderr, "  [cd-i] %s %s\n", fn == 0x33 ? "pause" : "continue", p->name);
             cdrtos_pause(fn == 0x33);
         } else {
             /* CD-RTOS device control (display, sound, pointer, disc): logged until the CD-i layer exists */

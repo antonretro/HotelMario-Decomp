@@ -36,7 +36,7 @@
 unsigned poll_ctr;
 
 static struct {
-    int active, paused;
+    int active, paused, stopping;
     FILE *f;
     uint32_t pcb;
     long sector;
@@ -110,6 +110,7 @@ void cdrtos_play(FILE *f, uint32_t pcb)
     play.eors = 0;
     play.active = 1;
     play.paused = 0;
+    play.stopping = 0;
     play.start = clock();
     play.fed = 0;
     if (trace)
@@ -120,10 +121,10 @@ void cdrtos_play(FILE *f, uint32_t pcb)
 
 void cdrtos_stop(void)
 {
-    if (play.active) {
-        play.active = 0;
-        wr16(play.pcb, 0x100);
-    }
+    /* SS_Abort / SS_Stop (e.g. a button press skipping the intro): the player still reports the end of
+       play, which is how the game's handlers learn the stream is over (cd_wait waits for exactly that).
+       The signal goes out on the next poll, after the system call has returned. */
+    if (play.active) play.stopping = 1;
 }
 
 void cdrtos_pause(int paused)
@@ -217,7 +218,13 @@ void rt_poll(void)
         static clock_t last;
         if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }
     }
-    if (!play.active || play.paused || in_handler) return;
+    if (!play.active || in_handler) return;
+    if (play.stopping) {
+        play.stopping = 0;
+        end_play();
+        return;
+    }
+    if (play.paused) return;
     due = (long)((double)(clock() - play.start) / CLOCKS_PER_SEC * SECTORS_PER_SEC);
     while (play.active && play.fed < due) {
         play.fed++;
