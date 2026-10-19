@@ -276,7 +276,9 @@ class Func:
         elif base.startswith("db") and base[2:] in CC:
             r = regexpr(ops[0].reg)
             t = (i.address + 2 + ops[1].br_disp.disp) & 0xFFFFFFFF
-            out.append(f"if (!{CC[base[2:]]}) {{ uint16_t w = (uint16_t)({r} - 1); setsz(&{r}, w, 2); "
+            # DBcc exits early when cc is TRUE; dbra/dbf's condition is always false, so it always counts down
+            cond = "0" if base[2:] in ("ra", "f") else CC[base[2:]]
+            out.append(f"if (!{cond}) {{ uint16_t w = (uint16_t)({r} - 1); setsz(&{r}, w, 2); "
                        f"{self.branch_to(t, 'w != 0xFFFF')} }}")
         elif base.startswith("s") and base[1:] in CC:
             d = ea(0, 1)
@@ -342,7 +344,7 @@ class Func:
         if self.dynamic_jump:
             self.labels |= self.addrs
             cases = " ".join(f"case 0x{a:x}: goto L_{a:x};" for a in sorted(self.addrs))
-            out.append(f"#define DYNJUMP(t) do {{ switch (t) {{ {cases} default: unimpl(t, \"jump\"); return; }} }} while (0)")
+            out.append(f"#define DYNJUMP(t) do {{ switch (t) {{ {cases} default: jump_far(t); return; }} }} while (0)")
         for addr, text, lines in body:
             if addr in self.labels:
                 out.append(f"L_{addr:x}:;")
@@ -390,23 +392,29 @@ def main():
     # Branches/bsr into the middle of another function (shared tails, local subroutines): give each such
     # address its own entry point, a copy of the owning function's code from there to its end.
     def branch_targets(f):
+        """(is_call, target) for every bsr/branch/dbcc."""
         for i in f.insns:
             base = i.mnemonic.partition(".")[0]
-            if base == "bsr" or base == "bra" or (base.startswith("b") and base[1:] in CC):
-                yield (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
+            if base == "bsr":
+                yield True, (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
+            elif base == "bra" or (base.startswith("b") and base[1:] in CC):
+                yield False, (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
             elif base.startswith("db") and base[2:] in CC:
-                yield (i.address + 2 + i.operands[1].br_disp.disp) & 0xFFFFFFFF
+                yield False, (i.address + 2 + i.operands[1].br_disp.disp) & 0xFFFFFFFF
 
     changed = True
     while changed:
         changed = False
         for f in list(funcs.values()):
-            for t in branch_targets(f):
-                if t in funcs or (f.start <= t < f.end and t in f.addrs and f.name == names.get(f.start)):
+            for is_call, t in branch_targets(f):
+                if t in funcs:
+                    continue
+                # a plain branch inside the same function is a goto; a bsr always needs an entry point
+                if not is_call and f.start <= t < f.end and t in f.addrs:
                     continue
                 owner = next((g for g in funcs.values() if g.start <= t < g.end and t in g.addrs
                               and g.name == names.get(g.start)), None)
-                if owner is None or (owner is f and f.start <= t < f.end):
+                if owner is None:
                     continue
                 funcs[t] = Func(f"{owner.name}_{t:x}", t, owner.end, [i for i in owner.insns if i.address >= t], None)
                 names[t] = funcs[t].name

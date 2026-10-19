@@ -238,6 +238,7 @@ static inline void f_divs(uint32_t s, int dn)
 
 typedef void (*RecompFn)(void);
 void     call_addr(uint32_t addr, uint32_t ret);   /* jsr through a computed address */
+void     jump_far(uint32_t addr);                  /* jmp out of the function: tail call, or a return (jmp (a5)) */
 void     os9_trap(int n, uint32_t code);           /* trap #n followed by a call-number word */
 void     unimpl(uint32_t addr, const char *what);  /* reached code the recompiler couldn't translate */
 
