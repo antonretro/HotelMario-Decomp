@@ -2,7 +2,7 @@
  * window.c - SDL2 window for the port: shows the emulated CD-i display ~50 times a second and turns
  * keyboard / gamepad input into the CD-i pointer (thumbpad + 2 buttons) the game reads with pt_coord.
  *
- * Keys: arrows = move, Z or Space = button 1, X or Enter = button 2, Esc = quit.
+ * Keys: arrows = move, Z or Space = button 1, X or Enter = button 2, F12 = save frame (debug), Esc = quit.
  * Gamepad: left stick / d-pad = move, A = button 1, B = button 2.
  */
 #define SDL_MAIN_HANDLED
@@ -53,6 +53,10 @@ static void read_input(void)
             exit(0);
         }
         if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
+        if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12) {   /* save the frame for debugging */
+            dump_at_ms = 1;
+            display_maybe_dump();
+        }
     }
     k = SDL_GetKeyboardState(0);
     if (k[SDL_SCANCODE_LEFT]) dx -= 3;

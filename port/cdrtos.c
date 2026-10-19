@@ -185,6 +185,8 @@ static void feed_sector(void)
         uint32_t at = cnt ? fill_offset(pcl) : 0;   /* sectors are packed back to back, whatever their form */
         if (buf) memcpy(RAM + ((buf + at) & RAM_MASK), s + 24, size);
         set_fill_offset(pcl, at + size);
+        if (buf && (sm & 0x02))                   /* tell the display what format this video data is in */
+            display_note_video(buf, at + size, ci & 0x0F);
         wr8(pcl + 1, sm);
         wr8(pcl + 3, ci);
         wr32(pcl + 0x18, ++cnt);
@@ -210,7 +212,7 @@ static void feed_sector(void)
 void rt_poll(void)
 {
     long due;
-    if (!in_handler) window_tick();
+    if (!in_handler) { window_tick(); display_maybe_dump(); }
     if (trace) {                               /* periodic display summary for headless debugging */
         static clock_t last;
         if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }

@@ -49,6 +49,32 @@ static struct {
 
 static unsigned seen[256];
 
+/* Video buffers filled from the disc, with the sector coding they arrived in. A plane whose display
+   start points into a buffer that received run-length (RL7, sector format 4) video is decoded as RL7. */
+#define NREGION 64
+static struct { uint32_t start, len; int fmt; } regions[NREGION];
+static int region_next;
+
+void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
+{
+    int i;
+    for (i = 0; i < NREGION; i++)
+        if (regions[i].start == buf) { regions[i].len = bytes; regions[i].fmt = fmt; return; }
+    regions[region_next].start = buf;
+    regions[region_next].len = bytes;
+    regions[region_next].fmt = fmt;
+    region_next = (region_next + 1) % NREGION;
+}
+
+static int is_run_length(uint32_t addr)
+{
+    int i;
+    for (i = 0; i < NREGION; i++)
+        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len)
+            return regions[i].fmt == 4 || regions[i].fmt == 3;   /* RL7 / RL3 */
+    return 0;
+}
+
 static void instr(uint32_t v, int plane)
 {
     int op = (int)(v >> 24);
@@ -77,7 +103,7 @@ static void instr(uint32_t v, int plane)
 static void log_write(const char *how, uint32_t t, uint32_t where, uint32_t v)
 {
     int op = (int)(v >> 24);
-    if (trace && (op == 0x78 || op == 0xC0 || op == 0xC1))
+    if (trace && (op == 0x78 || op == 0xC0 || op == 0xC1 || (op & 0xF0) == 0x40 || op == 0xDB || op == 0xDC))
         fprintf(stderr, "  [dcp] %s table %u @%u: %08x at %lu ms\n", how, t, where, v,
                 (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
 }
@@ -150,14 +176,30 @@ static uint32_t yuv(int y, int u, int v)
 
 static const int DQ[16] = { 0, 1, 4, 9, 16, 27, 44, 79, -128, -79, -44, -27, -16, -9, -4, -1 };
 
+static int plane_rl[2];   /* decide once per frame whether each plane shows run-length data */
+static int only_plane;    /* debugging: 1 = draw plane A only, 2 = plane B only */
+
 /* Draw one line of a plane; returns the bytes it used. opaque[x] = 0 where the pixel is transparent. */
 static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
 {
-    uint32_t a = vs.line_addr[p];
+    uint32_t a = vs.line_addr[p], used = 0;
     int coding = vs.coding[p], x;
     int clut_off = p ? 128 : 0, icf = vs.icf[p];
     if (!a || !coding) { memset(opaque, 0, W); return 0; }
-    if (coding == 5) {                                  /* DYUV */
+    if (plane_rl[p] && coding != 5) {                   /* RL7: colour byte, or 0x80|colour + count (0 = rest of line) */
+        uint32_t s = a;
+        x = 0;
+        while (x < W) {
+            int b = (int)rd8(a++);
+            int n = 1;
+            if (b & 0x80) {
+                n = (int)rd8(a++);
+                if (!n || x + n > W) n = W - x;
+            }
+            while (n-- > 0) rgb[x++] = vs.clut[clut_off + (b & 0x7F)];
+        }
+        used = a - s;
+    } else if (coding == 5) {                           /* DYUV */
         int Y = 16, U = 128, V = 128;
         for (x = 0; x < W; x += 2) {
             int b0 = (int)rd8(a + x), b1 = (int)rd8(a + x + 1), y0;
@@ -187,6 +229,7 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
             rgb[x] = r << 16 | g << 8 | b;
         }
     }
+    if (used) return used;
     return coding == 0xB ? W / 2 : W;
 }
 
@@ -206,13 +249,20 @@ void display_render(uint32_t *out)
     vs.icf[0] = vs.icf[1] = 63;
     run_fct(0);
     run_fct(1);
+    plane_rl[0] = plane_rl[1] = 0;
     for (y = 0; y < H; y++) {
         uint32_t used[2];
-        for (p = 0; p < 2; p++)
+        for (p = 0; p < 2; p++) {
+            uint32_t before = vs.line_addr[p];
             if (active_lct[p] >= 0 && y < LCT_LINES)
                 for (c = 0; c < LCT_COLS; c++) instr(lct[active_lct[p]][y][c], p);
+            if (vs.line_addr[p] != before || y == 0)   /* new display start: check what data it shows */
+                plane_rl[p] = is_run_length(vs.line_addr[p]);
+        }
         used[0] = draw_line(0, la, oa);
         used[1] = draw_line(1, lb, ob);
+        if (only_plane == 1) memset(ob, 0, W);
+        if (only_plane == 2) memset(oa, 0, W);
         for (x = 0; x < W; x++) {
             uint32_t col = vs.backdrop & 0xFFFFFF;
             if (vs.order & 1) { if (oa[x]) col = la[x]; if (ob[x]) col = lb[x]; }
@@ -222,6 +272,40 @@ void display_render(uint32_t *out)
         vs.line_addr[0] += used[0];
         vs.line_addr[1] += used[1];
     }
+}
+
+/* --dump-at <ms>: write the frame shown at that time, plus each plane alone, as raw RGB for comparisons */
+unsigned dump_at_ms;
+
+void display_maybe_dump(void)
+{
+    static int done;
+    static uint32_t f[W * H];
+    unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
+    int pass;
+    if (dump_at_ms == 1) dump_at_ms = 0, done = 0;   /* F12 in the window: dump right now */
+    else if (!dump_at_ms || done || now < dump_at_ms) return;
+    done = 1;
+    for (pass = 0; pass < 3; pass++) {           /* 0 = both planes, 1 = plane A only, 2 = plane B only */
+        char name[64];
+        FILE *o;
+        int i, save_b = vs.coding[1];
+        snprintf(name, sizeof name, "build/port/frame_%s.rgb", pass == 0 ? "both" : pass == 1 ? "A" : "B");
+        only_plane = pass;
+        display_render(f);
+        only_plane = 0;
+        (void)save_b;
+        if ((o = fopen(name, "wb"))) {
+            for (i = 0; i < W * H; i++) {
+                fputc((int)(f[i] >> 16) & 255, o);
+                fputc((int)(f[i] >> 8) & 255, o);
+                fputc((int)f[i] & 255, o);
+            }
+            fclose(o);
+        }
+    }
+    fprintf(stderr, "  [dump] frames written at %lu ms (plane A start %06x coding %x / B %06x coding %x)\n", now,
+            vs.line_addr[0], vs.coding[0], vs.line_addr[1], vs.coding[1]);
 }
 
 void display_report(void)
