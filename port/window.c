@@ -17,6 +17,13 @@
 #define H 280
 #define SCALE 2
 
+/* The visible area, like a TV's overscan. The player puts out 280 lines (PAL), but the game switches its
+   pictures on at line 2 and they run out after ~262 lines; below that the chip shows whatever memory follows
+   the picture, which a TV hid behind its bezel. Show lines 2-261; --full-frame shows all 280. */
+#define VIS_TOP 2
+#define VIS_H   260
+int full_frame;
+
 static SDL_Window *win;
 static SDL_Renderer *ren;
 static SDL_Texture *tex;
@@ -36,9 +43,9 @@ void window_init(void)
         return;
     }
     win = SDL_CreateWindow("Hotel Mario (CD-i) - decomp port", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                           W * SCALE, H * SCALE, SDL_WINDOW_RESIZABLE);
+                           W * SCALE, (full_frame ? H : VIS_H) * SCALE, SDL_WINDOW_RESIZABLE);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_RenderSetLogicalSize(ren, W * SCALE, H * SCALE);
+    SDL_RenderSetLogicalSize(ren, W * SCALE, (full_frame ? H : VIS_H) * SCALE);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
     audio_init();
 }
@@ -94,7 +101,10 @@ void window_tick(void)
     display_render(frame);
     SDL_UpdateTexture(tex, 0, frame, W * 4);
     SDL_RenderClear(ren);
-    SDL_RenderCopy(ren, tex, 0, 0);
+    {
+        SDL_Rect vis = { 0, VIS_TOP, W, VIS_H };
+        SDL_RenderCopy(ren, tex, full_frame ? 0 : &vis, 0);
+    }
     SDL_RenderPresent(ren);
 }
 

@@ -136,6 +136,17 @@ static void instr(uint32_t v, int plane)
         return;
     }
     if ((op & 0xF0) == 0x40) { vs.line_addr[plane] = data; return; }
+    if (trace && getenv("HM_DCPLOG") && op >= 0xC0 && op <= 0xDF && op != 0xC3) {   /* every distinct control value */
+        static uint32_t seen_v[512];
+        static int n_v;
+        int i;
+        for (i = 0; i < n_v && seen_v[i] != (v ^ (uint32_t)plane); i++) ;
+        if (i == n_v && n_v < 512) {
+            seen_v[n_v++] = v ^ (uint32_t)plane;
+            fprintf(stderr, "  [dcp] instr %08x plane %c at %lu ms\n", v, 'A' + plane,
+                    (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        }
+    }
     if (trace && op >= 0xD0 && op <= 0xD8) {          /* region control / backdrop: log distinct values */
         static uint32_t seen_rc[64];
         static int n_rc;
@@ -361,6 +372,26 @@ void display_render(uint32_t *out)
     static uint8_t oa[W], ob[W];
     int y, x, c, p;
     vs.icf[0] = vs.icf[1] = 63;
+    if (trace && getenv("HM_LCTDUMP")) {         /* once, after the given ms: the line tables' non-empty lines */
+        static int dumped;
+        unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
+        if (!dumped && now >= (unsigned long)atol(getenv("HM_LCTDUMP"))) {
+            int pl, ln, cl;
+            dumped = 1;
+            for (pl = 0; pl < 2; pl++) {
+                if (active_lct[pl] < 0) continue;
+                fprintf(stderr, "  [lct] plane %c LCT %d:\n", 'A' + pl, active_lct[pl]);
+                for (ln = 0; ln < 280; ln++) {
+                    int any = 0;
+                    for (cl = 0; cl < LCT_COLS; cl++) if ((lct[active_lct[pl]][ln][cl] >> 24) != 0x10) any = 1;
+                    if (!any) continue;
+                    fprintf(stderr, "    line %3d:", ln);
+                    for (cl = 0; cl < LCT_COLS; cl++) fprintf(stderr, " %08x", lct[active_lct[pl]][ln][cl]);
+                    fprintf(stderr, "\n");
+                }
+            }
+        }
+    }
     run_fct(0);
     run_fct(1);
     if (trace) {                                 /* log each change of the transparency set-up */
@@ -394,11 +425,26 @@ void display_render(uint32_t *out)
         }
         if (only_plane == 1) memset(ob, 0, W);
         if (only_plane == 2) memset(oa, 0, W);
-        for (x = 0; x < W; x++) {
-            uint32_t col = vs.backdrop & 0xFFFFFF;
-            if (vs.order & 1) { if (oa[x]) col = la[x]; if (ob[x]) col = lb[x]; }
-            else              { if (ob[x]) col = lb[x]; if (oa[x]) col = la[x]; }
-            out[y * W + x] = col;
+        if (vs.transp_set && !(vs.transp_ctl & 0x800000)) {
+            /* Mixing (0xC1 bit 23 clear): the planes are added, each already scaled by its brightness, and a
+               transparent pixel adds nothing. The Philips logo cross-fades its animation (A) into the
+               PHILIPS INTERACTIVE MEDIA card (B) this way. The game sets bit 23: plain overlay. */
+            for (x = 0; x < W; x++) {
+                uint32_t a = oa[x] ? la[x] : 0, b = ob[x] ? lb[x] : 0, col = 0;
+                int sh;
+                for (sh = 0; sh <= 16; sh += 8) {
+                    uint32_t s = ((a >> sh) & 255) + ((b >> sh) & 255);
+                    col |= (s > 255 ? 255 : s) << sh;
+                }
+                out[y * W + x] = (oa[x] || ob[x]) ? col : vs.backdrop & 0xFFFFFF;
+            }
+        } else {
+            for (x = 0; x < W; x++) {
+                uint32_t col = vs.backdrop & 0xFFFFFF;
+                if (vs.order & 1) { if (oa[x]) col = la[x]; if (ob[x]) col = lb[x]; }
+                else              { if (ob[x]) col = lb[x]; if (oa[x]) col = la[x]; }
+                out[y * W + x] = col;
+            }
         }
         vs.line_addr[0] += used[0];
         vs.line_addr[1] += used[1];

@@ -8,6 +8,7 @@ extern const char *fs_root;   /* folder with the files extracted from your disc 
 extern int trace;
 extern unsigned press_every;
 extern int headless;                  /* --headless: no window (for automated runs) */
+extern int full_frame;                /* --full-frame: show all 280 lines, not the TV-visible area */
 
 #include <stdio.h>
 #include "m68k.h"
