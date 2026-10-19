@@ -96,7 +96,9 @@ static void end_play(void)
     uint32_t pcb = play.pcb;
     uint16_t sig = (uint16_t)rd16(pcb + 2);
     play.active = 0;
-    if (trace) fprintf(stderr, "  [cd-i] end of play at sector %ld\n", play.sector);
+    if (play.stopping || !rd16(pcb + 2)) audio_stop();
+    if (trace) fprintf(stderr, "  [cd-i] end of play at sector %ld (%lu audio sectors so far)\n", play.sector,
+                       audio_sector_count());
     wr16(pcb + 2, 0x60A);             /* the game treats error 0x60a as a normal end */
     wr16(pcb, 0x8000 | 0x100);
     deliver(sig);
@@ -175,6 +177,10 @@ static void feed_sector(void)
     sm = s[18];
     ci = s[19];
 
+    /* audio sectors on a channel selected in the PCB's audio mask go to the speakers */
+    if ((sm & 0x04) && ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1))
+        audio_sector(s + 24, ci);
+
     if (sm & 0x02) { list = rd32(pcb + 0x0e); base = 0xFF00; }
     else if (sm & 0x04) { list = (rd16(pcb + 0x0c) >> ch) & 1 ? rd32(pcb + 0x12) : 0; base = 0xFE00; }
     else if (sm & 0x08) { list = rd32(pcb + 0x16); base = 0xFD00; }
@@ -220,6 +226,7 @@ void rt_poll(void)
     }
     if (!play.active || in_handler) return;
     if (play.stopping) {
+        audio_stop();                          /* skipped: cut the sound too */
         play.stopping = 0;
         end_play();
         return;

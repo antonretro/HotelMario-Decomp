@@ -40,6 +40,7 @@ void window_init(void)
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     SDL_RenderSetLogicalSize(ren, W * SCALE, H * SCALE);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
+    audio_init();
 }
 
 static void read_input(void)
