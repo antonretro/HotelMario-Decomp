@@ -47,6 +47,7 @@ static struct {
 
 static uint32_t icpt_handler, icpt_data;
 static int in_handler;
+int signal_flag;           /* set whenever a signal is delivered; F$Sleep wakes on it */
 static jmp_buf rte_jmp;
 
 void cdrtos_set_intercept(uint32_t handler, uint32_t data)
@@ -55,14 +56,22 @@ void cdrtos_set_intercept(uint32_t handler, uint32_t data)
     icpt_data = data;
 }
 
+void cdrtos_get_intercept(uint32_t *handler, uint32_t *data)
+{
+    *handler = icpt_handler;
+    *data = icpt_data;
+}
+
 /* Run the program's signal intercept routine, like OS-9 does when a signal arrives. */
 static void deliver(uint32_t sig)
 {
     Cpu saved;
     RecompFn fn;
     if (!icpt_handler || in_handler) return;
+    signal_flag = 1;
     if (!(fn = recomp_lookup(icpt_handler))) {
-        fprintf(stderr, "signal handler at 0x%x has no entry point\n", icpt_handler);
+        /* the handler is interpreted code (a child program such as cdi_bumper): run it in the interpreter */
+        interp_signal(sig, icpt_handler, icpt_data);
         return;
     }
     if (trace) fprintf(stderr, "  [cd-i] signal 0x%04x\n", sig);
@@ -81,6 +90,7 @@ static void deliver(uint32_t sig)
 void cdrtos_rte(void)   /* F$RTE: leave the intercept routine */
 {
     if (in_handler) longjmp(rte_jmp, 1);
+    interp_rte();         /* or an interpreted one */
 }
 
 static void pcb_event(uint16_t bits)

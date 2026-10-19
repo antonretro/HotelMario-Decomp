@@ -15,6 +15,11 @@ extern int headless;                  /* --headless: no window (for automated ru
 void os9_init(void);
 RecompFn recomp_lookup(uint32_t addr);
 void interp_call(uint32_t addr);   /* interp.c: run non-recompiled code on Musashi */
+void interp_reset(void);           /* after a child program left the interpreter via F$Exit */
+void interp_signal(uint32_t sig, uint32_t handler, uint32_t data);  /* signal for interpreted code */
+void interp_rte(void);             /* F$RTE from an interpreted intercept routine */
+void cdrtos_get_intercept(uint32_t *handler, uint32_t *data);
+extern int signal_flag;
 
 /* cdrtos.c - CD-RTOS real-time playback and signal delivery */
 void cdrtos_set_intercept(uint32_t handler, uint32_t data);

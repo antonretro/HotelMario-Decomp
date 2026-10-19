@@ -5,6 +5,7 @@
  * carry set + d1 = error code on failure. Files on the disc are read from fs_root (your extracted
  * disc), NVRAM saves go to build/nvr. Unknown calls stop the program so they can be added.
  */
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -151,14 +152,125 @@ static void io_rw(int write, int line)
     ok();
 }
 
+/* Program modules loaded so far (F$Load/F$Link), so F$Fork can find them by name. */
+#define NMODS 32
+static struct { char name[32]; uint32_t addr; } mods[NMODS];
+static int nmods;
+
+static void remember_module(const char *name, uint32_t addr)
+{
+    const char *base = strrchr(name, '/');
+    base = base ? base + 1 : name;
+    if (nmods < NMODS) {
+        strncpy(mods[nmods].name, base, sizeof mods[nmods].name - 1);
+        mods[nmods].addr = addr;
+        nmods++;
+    }
+}
+
+static jmp_buf child_exit;
+static int in_child;
+
+/* Relocation tables after a module's initialised data: groups of u16 high word, u16 count, count x u16
+   low word; the first table is code references (+ module address), the second data references (+ data). */
+static void relocate(uint32_t p, uint32_t data, uint32_t module)
+{
+    int t;
+    for (t = 0; t < 2; t++) {
+        for (;;) {
+            uint32_t hi = rd16(p), cnt = rd16(p + 2);
+            p += 4;
+            if (!cnt) break;
+            while (cnt--) {
+                uint32_t at = data + ((hi << 16) | rd16(p));
+                wr32(at, rd32(at) + (t ? data : module));
+                p += 2;
+            }
+        }
+    }
+}
+
+/* F$Fork: run a child program (the cdi_bumper Philips logo) on the interpreter until it calls F$Exit.
+   Registers in: a0 = module name, d1 = extra memory, d2 = parameter size, a1 = parameters. */
+static void fork_child(void)
+{
+    char name[64];
+    uint32_t m = 0, exec, mem, stack, idata, irefs, psize = cpu.d[2], total, data, params;
+    uint32_t old_handler, old_data;
+    Cpu parent = cpu;
+    int i;
+    cstring(cpu.a[0], name, sizeof name);
+    for (i = nmods - 1; i >= 0 && !m; i--)                 /* by name... */
+        if (!strcmp(mods[i].name, name)) m = mods[i].addr;
+    for (i = nmods - 1; i >= 0 && !m; i--)                 /* ...else the last program module loaded */
+        if (rd8(mods[i].addr + 0x12) == 1) m = mods[i].addr;
+    if (!m || rd16(m) != 0x4AFC) {
+        fprintf(stderr, "  [os9] fork %s: no such program loaded, skipped\n", name);
+        cpu.d[0] = 3;
+        ok();
+        return;
+    }
+    exec = rd32(m + 0x30); mem = rd32(m + 0x38); stack = rd32(m + 0x3C);
+    idata = rd32(m + 0x40); irefs = rd32(m + 0x44);
+    total = (mem + stack + cpu.d[1] + psize + 0x200 + 0xFFF) & ~0xFFFu;
+    data = alloc(total);
+    if (idata) {
+        uint32_t off = rd32(m + idata), sz = rd32(m + idata + 4);
+        memcpy(RAM + data + off, RAM + m + idata + 8, sz);
+    }
+    if (irefs) relocate(m + irefs, data, m);
+    params = data + total - ((psize + 3) & ~3u) - 4;
+    for (i = 0; i < (int)psize; i++) wr8(params + i, rd8(parent.a[1] + i));
+    if (!psize) wr8(params, '\r');
+
+    fprintf(stderr, "  [os9] fork %s at 0x%x: data 0x%x (%u bytes)\n", (const char *)RAM + m + rd32(m + 0x0C), m, data, total);
+    memset(&cpu, 0, sizeof cpu);
+    cpu.a[3] = m;
+    cpu.a[6] = data + 0x8000;
+    cpu.a[5] = params;
+    cpu.d[5] = psize ? psize : 1;
+    cpu.d[6] = total;
+    cpu.d[3] = 3;
+    cpu.a[1] = data + total;
+    cpu.a[7] = params;
+    cdrtos_get_intercept(&old_handler, &old_data);
+    cdrtos_set_intercept(0, 0);
+    in_child = 1;
+    if (!setjmp(child_exit))
+        interp_call(m + exec);
+    in_child = 0;
+    interp_reset();
+    cdrtos_set_intercept(old_handler, old_data);
+    fprintf(stderr, "  [os9] child %s finished\n", name);
+    cpu = parent;
+    cpu.d[0] = 3;
+    ok();
+}
+
 static void link_module(void)
 {
     char name[128], host[512];
     FILE *f;
     long size;
-    uint32_t a = cpu.a[0], m;
+    uint32_t a = cpu.a[0], m, off;
+    const char *base;
+    int i;
     cstring(a, name, sizeof name);
     cpu.a[0] = a + (uint32_t)strlen(name);
+    /* already in memory (F$Load puts every module of a file there, e.g. cdi_bumpdata after cdi_bumper)? */
+    base = strrchr(name, '/');
+    base = base ? base + 1 : name;
+    for (i = nmods - 1; i >= 0; i--)
+        if (!strcmp(mods[i].name, base)) {
+            m = mods[i].addr;
+            cpu.a[2] = m;
+            cpu.a[1] = m + rd32(m + 0x30);
+            cpu.d[0] = rd16(m + 0x12);
+            cpu.d[1] = rd16(m + 0x14);
+            if (trace) fprintf(stderr, "  [os9] link %s -> 0x%x (in memory)\n", base, m);
+            ok();
+            return;
+        }
     host_path(name, host, sizeof host);
     if (!(f = fopen(host, "rb"))) {
         fprintf(stderr, "  [os9] link %s: module not found\n", name);
@@ -176,6 +288,13 @@ static void link_module(void)
     cpu.d[0] = rd16(m + 0x12);
     cpu.d[1] = rd16(m + 0x14);
     fprintf(stderr, "  [os9] load %s -> 0x%x (%ld bytes)\n", name, m, size);
+    /* a module file can hold several modules back to back: register each of them */
+    for (off = 0; off + 0x30 <= (uint32_t)size && rd16(m + off) == 0x4AFC && rd32(m + off + 4) >= 0x30;
+         off += rd32(m + off + 4)) {
+        remember_module((const char *)RAM + m + off + rd32(m + off + 0x0C), m + off);
+        if (off) fprintf(stderr, "  [os9]   also contains %s at 0x%x\n",
+                         (const char *)RAM + m + off + rd32(m + off + 0x0C), m + off);
+    }
     ok();
 }
 
@@ -257,26 +376,28 @@ void os9_trap(int n, uint32_t code)
     case 0x00:                                                         /* F$Link */
     case 0x01: link_module(); break;                                   /* F$Load: same, from the disc */
     case 0x02: ok(); break;                                            /* F$UnLink */
-    case 0x03: {                                                       /* F$Fork: a0 = module name */
-        char name[64];
-        cstring(cpu.a[0], name, sizeof name);
-        /* Child programs (the cdi_bumper Philips logo) aren't recompiled: pretend they ran and exited. */
-        fprintf(stderr, "  [os9] fork %s skipped (child program not recompiled)\n", name);
-        cpu.d[0] = 3;
-        ok();
-        break;
-    }
+    case 0x03: fork_child(); break;                                    /* F$Fork */
     case 0x04: cpu.d[0] = 3; cpu.d[1] = 0; ok(); break;                /* F$Wait: the skipped child exited OK */
     case 0x06:                                                         /* F$Exit */
+        if (in_child) longjmp(child_exit, 1);                          /* the child ends, the game goes on */
         fprintf(stderr, "program exited with status %u\n", cpu.d[1] & 0xFFFF);
         exit((int)(cpu.d[1] & 0xFF));
     case 0x07: cpu.d[0] = cpu.d[0] ? cpu.d[0] : 0x2600; cpu.a[1] = DATA_BASE + cpu.d[0]; ok(); break; /* F$Mem */
     case 0x09: cdrtos_set_intercept(cpu.a[0], cpu.a[6]); ok(); break;  /* F$Icpt: a0 handler, a6 its data */
-    case 0x0A:                                                         /* F$Sleep: d0 ticks (1/100 s), 0 = until a signal */
-        wait_ms(cpu.d[0] ? cpu.d[0] * 10 : 10);
+    case 0x0A: {                                                       /* F$Sleep: d0 ticks (1/100 s), 0 = until a signal */
+        /* A signal wakes the sleeper (the bumper sleeps until its end-of-play signal). For interpreted
+           code the handler then runs right after this call returns, like OS-9 does. */
+        unsigned ticks = cpu.d[0];
+        clock_t end = clock() + (clock_t)ticks * CLOCKS_PER_SEC / 100;
+        signal_flag = 0;
+        while (!signal_flag && (!ticks || clock() < end)) {
+            rt_poll();
+            window_sleep(1);
+        }
         cpu.d[0] = 0;
         ok();
         break;
+    }
     case 0x1E: cdrtos_rte(); ok(); break;                              /* F$RTE: end of signal intercept */
     case 0x0C: cpu.d[0] = 2; cpu.d[1] = 0; ok(); break;                /* F$ID */
     case 0x15: {                                                       /* F$Time: Gregorian */

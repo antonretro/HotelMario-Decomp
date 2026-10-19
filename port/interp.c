@@ -49,15 +49,64 @@ static void from_musashi(void)
     cpu.x = (sr >> 4) & 1; cpu.n = (sr >> 3) & 1; cpu.z = (sr >> 2) & 1; cpu.v = (sr >> 1) & 1; cpu.c = sr & 1;
 }
 
+/* ---- signals for interpreted code: like OS-9, save the registers, run the intercept routine with
+   d1 = signal and a6 = its data, and restore everything when it calls F$RTE ---- */
+static struct { int pending, active; uint32_t sig, handler, data; Cpu saved; unsigned saved_pc; } isig;
+static int rte_requested;
+
+void interp_signal(uint32_t sig, uint32_t handler, uint32_t data)
+{
+    if (!running || isig.pending || isig.active) return;   /* one at a time, like a masked signal */
+    isig.pending = 1;
+    isig.sig = sig;
+    isig.handler = handler;
+    isig.data = data;
+}
+
+void interp_rte(void)
+{
+    if (isig.active) rte_requested = 1;
+}
+
+static void start_signal(unsigned pc)
+{
+    from_musashi();
+    isig.saved = cpu;
+    isig.saved_pc = pc;
+    cpu.d[1] = isig.sig;
+    cpu.a[6] = isig.data;
+    cpu.a[7] -= 0x80;
+    to_musashi();
+    m68k_set_reg(M68K_REG_PC, isig.handler);
+    isig.pending = 0;
+    isig.active = 1;
+}
+
 /* trap #n: PC already points at the OS-9 call number word that follows the trap */
 int interp_trap(int trap)
 {
     unsigned pc = m68k_get_reg(NULL, M68K_REG_PC);
     from_musashi();
     os9_trap(trap, rd16(pc));
+    if (rte_requested) {                    /* F$RTE: back to where the signal interrupted */
+        rte_requested = 0;
+        isig.active = 0;
+        cpu = isig.saved;
+        to_musashi();
+        m68k_set_reg(M68K_REG_PC, isig.saved_pc);
+        return 1;
+    }
     to_musashi();
     m68k_set_reg(M68K_REG_PC, pc + 2);
     return 1;   /* handled: no exception */
+}
+
+void interp_reset(void)
+{
+    running = 0;
+    done = 0;
+    isig.pending = isig.active = 0;
+    rte_requested = 0;
 }
 
 static unsigned history[64];
@@ -84,6 +133,10 @@ void interp_hook(unsigned int pc)
     if (pc == SENTINEL) {
         done = 1;
         m68k_end_timeslice();
+        return;
+    }
+    if (isig.pending && !isig.active) {     /* a signal arrived for interpreted code */
+        start_signal(pc);
         return;
     }
     if (trace && !(hook_count & 0x3FFFFF))  /* every ~4M instructions: where are we? */
