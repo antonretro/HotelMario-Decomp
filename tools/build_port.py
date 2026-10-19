@@ -4,6 +4,7 @@ Usage: python tools/build_port.py            -> build/port/hotel.exe
 """
 import glob
 import os
+import shutil
 import subprocess
 import sys
 
@@ -13,6 +14,7 @@ OUT = os.path.join(ROOT, "build", "port")
 
 
 MUSASHI = os.path.join(ROOT, "tools", "ext", "Musashi")
+SDL = os.path.join(ROOT, "tools", "ext", "SDL2-2.32.10", "x86_64-w64-mingw32")
 
 
 def musashi_sources():
@@ -33,7 +35,10 @@ def main():
     srcs = sorted(glob.glob(os.path.join(ROOT, "build", "recomp", "*.c"))) + \
         sorted(glob.glob(os.path.join(ROOT, "port", "*.c"))) + musashi_sources()
     headers = [os.path.join(ROOT, "port", h) for h in ("m68k.h", "runtime.h", "musashi_conf.h")]
-    flags = ["-O1", "-w", "-I" + os.path.join(ROOT, "port"), "-I" + MUSASHI, '-DMUSASHI_CNF="musashi_conf.h"']
+    if not os.path.isdir(SDL):
+        sys.exit("SDL2 missing: extract SDL2-devel-2.32.10-mingw.zip (libsdl-org/SDL releases) into tools/ext")
+    flags = ["-O1", "-w", "-I" + os.path.join(ROOT, "port"), "-I" + MUSASHI, '-DMUSASHI_CNF="musashi_conf.h"',
+             "-I" + os.path.join(SDL, "include", "SDL2")]
     objs = []
     for s in srcs:
         o = os.path.join(OUT, os.path.basename(s)[:-2] + ".o")
@@ -41,7 +46,8 @@ def main():
             subprocess.run([GCC, "-c"] + flags + [s, "-o", o], check=True)
         objs.append(o)
     exe = os.path.join(OUT, "hotel.exe")
-    subprocess.run([GCC] + objs + ["-o", exe], check=True)
+    subprocess.run([GCC] + objs + ["-L" + os.path.join(SDL, "lib"), "-lSDL2", "-o", exe], check=True)
+    shutil.copy(os.path.join(SDL, "bin", "SDL2.dll"), OUT)
     print("built", exe)
 
 

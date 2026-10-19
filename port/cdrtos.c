@@ -210,6 +210,11 @@ static void feed_sector(void)
 void rt_poll(void)
 {
     long due;
+    if (!in_handler) window_tick();
+    if (trace) {                               /* periodic display summary for headless debugging */
+        static clock_t last;
+        if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }
+    }
     if (!play.active || play.paused || in_handler) return;
     due = (long)((double)(clock() - play.start) / CLOCKS_PER_SEC * SECTORS_PER_SEC);
     while (play.active && play.fed < due) {

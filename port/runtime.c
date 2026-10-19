@@ -120,6 +120,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "--trace")) trace = 1;
         else if (!strcmp(argv[i], "--watch") && i + 1 < argc) watch_pc = (uint32_t)strtoul(argv[++i], 0, 16);
         else if (!strcmp(argv[i], "--press") && i + 1 < argc) press_every = (unsigned)atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--headless")) headless = 1;
         else fs_root = argv[i];
     }
 
@@ -168,6 +169,8 @@ int main(int argc, char **argv)
     cpu.a[1] = DATA_BASE + memsize;         /* top of the process memory */
     cpu.a[7] = params;                      /* stack grows down below the parameters */
     os9_init();
+    window_init();
+    if (trace) atexit(display_report);
 
     fprintf(stderr, "starting cdi_hotel: data 0x%x-0x%x, stack top 0x%x\n", DATA_BASE, DATA_BASE + memsize, cpu.a[7]);
     PUSH32(0xFFFFFFFFu);                    /* return address for _cstart; it should exit via F$Exit */

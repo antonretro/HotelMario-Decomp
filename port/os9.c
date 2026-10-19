@@ -318,14 +318,18 @@ void os9_trap(int n, uint32_t code)
             fseek(p->f, cur, SEEK_SET);
         } else if (p->f && code == 0x8D && fn == 0x05) {               /* SS_Pos */
             cpu.d[2] = (uint32_t)ftell(p->f);
+        } else if (code == 0x8E && fn == 0x56) {                       /* dc_*: video chip display program */
+            display_setstt();
         } else if (code == 0x8D && fn == 0x59) {                       /* pointer coordinates (pt_coord) */
-            /* d0.w = buttons, d1 = y << 16 | x. No real input yet: pointer at the centre, and with
-               --press N a button 1 press is simulated for a few polls after every N polls (for testing). */
+            /* d0.w = buttons, d1 = y << 16 | x, from the window's keyboard/gamepad state.
+               --press N also simulates a button 1 press every N polls (for headless testing). */
             static unsigned polls;
+            int px, py, buttons;
             polls++;
-            cpu.d[0] = (press_every && polls % press_every < 20) ? 1 : 0;
-            if (cpu.d[0] && polls % press_every == 0) fprintf(stderr, "  [input] simulated button press\n");
-            cpu.d[1] = (140u << 16) | 192u;
+            window_pointer(&px, &py, &buttons);
+            if (press_every && polls % press_every < 20) buttons |= 1;
+            cpu.d[0] = (uint32_t)buttons;
+            cpu.d[1] = ((uint32_t)py << 16) | (uint32_t)px;
         } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
             cdrtos_play(p->f, cpu.a[0]);
         } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */

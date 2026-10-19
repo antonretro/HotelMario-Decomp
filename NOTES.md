@@ -64,3 +64,7 @@
 ## Tools
 - `python -I tools/cdi_fs.py list <bin>` lists the files on the disc.
 - `python -I tools/cdi_fs.py extract <bin> build/eu/fs` extracts them. Realtime files are kept as raw 2352-byte sectors.
+
+## Third-party code used by the port (not in git, fetched into tools/ext)
+- Musashi 68000 core, (c) 1998-2002 Karl Stenerud, MIT licence - runs the code modules streamed from the disc.
+- SDL 2.32.10, zlib licence - window, input.
