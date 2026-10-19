@@ -23,7 +23,23 @@
 ## Compiler evidence
 - `link.w a5,#n` frames and a `movem.l` register save; the first two arguments go in **d0/d1** and the rest on the stack.
 - Globals are accessed via **a6 biased by 0x8000**. Calls go through `jsr -x(a6)` (a jump table, `_jmptbl`).
-- These match the Microware OS-9/68000 C calling convention. Old cc 3.x or early Ultra C is still to be decided.
+- These match the Microware OS-9/68000 C calling convention.
+
+### Verdict: Microware OS-9/68000 C compiler 3.x (most likely 3.2), not Ultra C
+- The linked library is the 3.x-era `clib.l`. It uses the old OS-9 call names (`_ev_creat`, `_ev_wait`, `_mkdata_module`,
+  `intercept`, `os9fork`, `_srqmem`, `_sysdbg`, `_utinit`, `_dumprof`) where Ultra C uses `_os_*`.
+- Float/long helpers are the `_T$...` family (`_T$DAdd`, `_T$LtoA`, `_T$FtoD`, `PackD`, `NormD`), from the 3.x `math.l`.
+- CD-i's CD-RTOS is OS-9/68K **2.4**. The C compiler of that era is 3.2, while Ultra C shipped with OS-9 3.0
+  (see the ICDIA documentation index: https://icdia.co.uk/microware/index.html).
+- Game code makes **no `_stkcheck` calls**, so it was built with stack checking off (`cc -s`). 356 of 481 functions use `link.w a5`.
+  The library functions mostly don't, which suggests hand-written assembly.
+- Exact version and flags (`-s`, optimizer `o68` on/off) can only be confirmed by compiling test functions with the
+  real compiler (cc/c68/o68/r68 running under OS-9, e.g. on an emulated CD-i 605 dev player) and diffing against `asm/`.
+- Until then: write C that's non-matching but equivalent, while learning code patterns by hand.
+
+## Bring your own disc
+- `python -I tools/setup.py "<your Hotel Mario (Europe).bin>"` checks the image SHA1, extracts it, generates `asm/` and runs the matching build.
+- Recognised images: EU (supported) and the 1993-11-23 USA beta (recognised, not built yet). No game data goes in git.
 
 ## Module container (`tools/os9mod.py`)
 - Header parity (inverted XOR of the words in 0x00-0x2D) and the module CRC (CRC-24, poly 0x800063) recompute **exactly** for `cdi_hotel` and `.stb`.
