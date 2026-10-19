@@ -56,6 +56,45 @@ uint32_t field_signal;      /* dc_ssig: signal to send at the next field (0 = no
 static struct { uint32_t start, len; int fmt; } regions[NREGION];
 static int region_next;
 
+/* A child program (the Philips logo) writes its own settings into the display tables while it runs. On a
+   CD-i each program's video setup is its own, so when the child exits the parent's complete display state
+   (every table, the links and the chip registers) comes back exactly as it was. */
+static struct {
+    uint32_t fct[NTAB][FCT_SLOTS];
+    uint32_t lct[NTAB][LCT_LINES][LCT_COLS];
+    uint8_t tab_plane[NTAB], tab_is_lct[NTAB];
+    int active_fct[2], active_lct[2], next_table;
+    uint32_t field_signal;
+} saved;
+static int saved_valid;
+
+void display_save_tables(void)
+{
+    memcpy(saved.fct, fct, sizeof fct);
+    memcpy(saved.lct, lct, sizeof lct);
+    memcpy(saved.tab_plane, tab_plane, sizeof tab_plane);
+    memcpy(saved.tab_is_lct, tab_is_lct, sizeof tab_is_lct);
+    memcpy(saved.active_fct, active_fct, sizeof active_fct);
+    memcpy(saved.active_lct, active_lct, sizeof active_lct);
+    saved.next_table = next_table;
+    saved_valid = 1;
+}
+
+void display_restore_tables(void)
+{
+    if (!saved_valid) return;
+    memcpy(fct, saved.fct, sizeof fct);
+    memcpy(lct, saved.lct, sizeof lct);
+    memcpy(tab_plane, saved.tab_plane, sizeof tab_plane);
+    memcpy(tab_is_lct, saved.tab_is_lct, sizeof tab_is_lct);
+    memcpy(active_fct, saved.active_fct, sizeof active_fct);
+    memcpy(active_lct, saved.active_lct, sizeof active_lct);
+    next_table = saved.next_table;
+    saved_valid = 0;
+    if (trace) fprintf(stderr, "  [dcp] parent display state restored: FCT %d/%d LCT %d/%d\n",
+                       active_fct[0], active_fct[1], active_lct[0], active_lct[1]);
+}
+
 void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
 {
     int i;

@@ -1,26 +1,25 @@
 /*
  * cdrtos.c - CD-i real-time disc playback (SS_Play) and OS-9 signal delivery for the port.
  *
- * The layout below was read from the game's own streaming code (ds_seek, ds_play, ds_setup_channel
- * and the ds_*_signal_handler functions):
+ * Structures as defined in Microware's "CD-I System Libraries Technical Reference Manual" (ss_play(),
+ * cdfm.h; build/docs/cdisys.pdf), offsets as the game uses them:
  *
- *   PCB (play control block, DsPcb)                PCL (buffer descriptor, 0x1c bytes, chained)
- *     +0x00 w  status: 0x01 end of record            +0x00 b  control (bit 7 = error)
- *              0x10 trigger, 0x100 finished,         +0x01 b  submode of the last sector
- *              0x8000 error/end                      +0x03 b  coding of the last sector
- *     +0x02 w  signal to send; error code at end     +0x04 w  signal to send when this buffer is done
- *     +0x04 l  records left to play (0 = all);       +0x06 l  next PCL
- *              the drive counts it down per record
- *                                                    +0x0a l  buffer
- *     +0x08 l  channel mask                          +0x0e l  buffer size in sectors
- *     +0x0c w  audio channel mask                    +0x18 l  sectors transferred
- *     +0x0e l  video channel list  (CIL: one PCL pointer per channel)
- *     +0x12 l  audio channel list
- *     +0x16 l  data channel list
- *
- * Each filled buffer is reported with the signal stored in its PCL (the game uses 0xFF00/0xFE00/0xFD00
- * for video/audio/data plus the index of its channel entry - not the disc channel number);
- * PCB events with the PCB's own signal (0xFC00). The end of play is reported as error 0x60a.
+ *   PCB (play control block)                       PCL (play control list, 0x1c bytes, chained)
+ *     +0x00 w  PCB_Stat  current status of the play  +0x00 b  PCL_Ctrl  control byte (bit 7 = error)
+ *     +0x02 w  PCB_Sig   signal sent on termination;  +0x01 b  reserved
+ *                        the error code on error      +0x02 b  PCL_Smode submode of the last sector
+ *     +0x04 l  PCB_Rec   max number of records         +0x03 b  PCL_Type  coding of the last sector
+ *     +0x08 l  PCB_Chan  channel selection mask        +0x04 w  PCL_Sig   signal sent on buffer full
+ *     +0x0c w  PCB_AChan audio-to-memory mask          +0x06 l  PCL_Nxt   next PCL
+ *     +0x0e l  PCB_Video array of PCL ptrs per channel +0x0a l  PCL_Buf   buffer
+ *     +0x12 l  PCB_Audio                               +0x0e l  PCL_BufSz buffer size (sectors)
+ *     +0x16 l  PCB_Data                                +0x12 l  PCL_Err, +0x16 w reserved
+ *                                                      +0x18 l  PCL_Cnt   current offset (sectors)
+ * The PCB signal goes out at each end of record and trigger bit and when the play ends; the status bits
+ * and the three ways a play ends are described at end_play_how() below. The error code is written into
+ * PCB_Sig, as the manual describes for the drive's asynchronous operations.
+ * Audio sectors on channels in PCB_AChan go to memory (the audio PCLs); other selected audio channels
+ * go to the audio decoder, i.e. the speakers.
  * Sectors are fed at the real single-speed rate (75 per second) from rt_poll().
  */
 #include <setjmp.h>
@@ -98,21 +97,54 @@ static void pcb_event(uint16_t bits)
 {
     uint32_t pcb = play.pcb;
     uint16_t sig = (uint16_t)rd16(pcb + 2);
+    if (trace) fprintf(stderr, "  [cd-i] event %04x at sector %ld (records left %u, signal %u)\n", bits, play.sector,
+                       rd32(pcb + 4), sig);
     wr16(pcb, bits);
     deliver(sig);
 }
 
-static void end_play(void)
+/* PCB_Stat bits, as both programs' handlers read them: 0x01 end of record, 0x10 trigger, 0x80 end of file,
+   0x100 play finished, 0x8000 error (code in PCB_Sig, which the manual says the drive writes there).
+   How a play ends:
+     records done (PCB_Rec reached 0)   0x0101, no error - the Philips logo program's 1-record preamble ends
+                                        like this and it carries on to the logo
+     end of file                        0x8180 + code 0x60a - Hotel Mario's dsERRORcb treats 0x60a as the
+                                        normal end; the logo program uses it to see bumper.rtf is over
+     ss_abort()                         0x8100 + code 0x60a - both programs then finish cleanly */
+#define E_END 0x60A
+enum { END_RECORDS, END_OF_FILE, END_ABORT };
+
+static void end_play_how(int how)
 {
     uint32_t pcb = play.pcb;
     uint16_t sig = (uint16_t)rd16(pcb + 2);
+    static const char *what[] = { "end of play (records done)", "end of play (end of file)", "play aborted" };
     play.active = 0;
-    if (play.stopping || !rd16(pcb + 2)) audio_stop();
-    if (trace) fprintf(stderr, "  [cd-i] end of play at sector %ld (%lu audio sectors so far)\n", play.sector,
+    if (how == END_ABORT) audio_stop();
+    if (trace) fprintf(stderr, "  [cd-i] %s at sector %ld (%lu audio sectors so far)\n", what[how], play.sector,
                        audio_sector_count());
-    wr16(pcb + 2, 0x60A);             /* the game treats error 0x60a as a normal end */
-    wr16(pcb, 0x8000 | 0x100);
+    if (how == END_RECORDS) {
+        wr16(pcb, 0x0101);
+    } else {
+        wr16(pcb + 2, E_END);
+        wr16(pcb, how == END_OF_FILE ? 0x8180 : 0x8100);
+    }
     deliver(sig);
+}
+
+static void end_play_status(uint16_t unused, int aborted)
+{
+    (void)unused;
+    end_play_how(aborted ? END_ABORT : END_OF_FILE);
+}
+
+static void end_play(void) { end_play_status(0, 0); }
+
+void cdrtos_kill(void)   /* the program that started the play has exited: stop without any signal */
+{
+    play.active = 0;
+    play.stopping = 0;
+    audio_stop();
 }
 
 void cdrtos_play(FILE *f, uint32_t pcb)
@@ -189,12 +221,12 @@ static void feed_sector(void)
     sm = s[18];
     ci = s[19];
 
-    /* audio sectors on a channel selected in the PCB's audio mask go to the speakers */
-    if ((sm & 0x04) && ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1))
+    /* audio: channels in PCB_AChan go to memory, other selected channels to the decoder (speakers) */
+    if ((sm & 0x04) && ((rd32(pcb + 8) >> ch) & 1) && !(ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1)))
         audio_sector(s + 24, ci);
 
     if (sm & 0x02) { list = rd32(pcb + 0x0e); base = 0xFF00; }
-    else if (sm & 0x04) { list = (rd16(pcb + 0x0c) >> ch) & 1 ? rd32(pcb + 0x12) : 0; base = 0xFE00; }
+    else if (sm & 0x04) { list = (ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1)) ? rd32(pcb + 0x12) : 0; base = 0xFE00; }
     else if (sm & 0x08) { list = rd32(pcb + 0x16); base = 0xFD00; }
     if (!((rd32(pcb + 8) >> ch) & 1)) list = 0;
 
@@ -220,15 +252,20 @@ static void feed_sector(void)
         }
     }
     if (sm & 0x10) pcb_event(0x10);               /* trigger */
+    if (sm & 0x80) {                              /* end of file wins over an end of record on the same sector */
+        if (rd32(pcb + 4)) wr32(pcb + 4, rd32(pcb + 4) - 1);
+        end_play_how(END_OF_FILE);
+        return;
+    }
     if (sm & 0x01) {                              /* end of record */
         /* The drive counts the PCB's "records to play" down itself before signalling; handlers rely on
            it (the Philips logo program only starts its fade-out once it reads 0). */
+        /* the drive counts PCB_Rec down; when the requested records are done the play finishes */
         uint32_t left = rd32(pcb + 4);
         if (left) wr32(pcb + 4, --left);
-        pcb_event(0x01);
-        if (play.counted && !left) { end_play(); return; }
+        if (play.counted && !left) { end_play_how(END_RECORDS); return; }
+        pcb_event(0x01);                          /* intermediate end of record (the game counts these) */
     }
-    if (sm & 0x80) end_play();                    /* end of file */
 }
 
 void rt_poll(void)
@@ -249,9 +286,8 @@ void rt_poll(void)
     }
     if (!play.active || in_handler) return;
     if (play.stopping) {
-        audio_stop();                          /* skipped: cut the sound too */
         play.stopping = 0;
-        end_play();
+        end_play_status(0, 1);                 /* aborted: end of play right away, sound cut */
         return;
     }
     if (play.paused) return;

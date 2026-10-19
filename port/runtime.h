@@ -28,6 +28,7 @@ void cdrtos_play(FILE *f, uint32_t pcb);
 void cdrtos_stop(void);
 void cdrtos_pause(int paused);
 void cdrtos_rte(void);
+void cdrtos_kill(void);
 
 /* display.c - CD-i video chip state from the game's dc_* calls */
 void display_setstt(void);
@@ -35,6 +36,8 @@ void display_render(uint32_t *out);   /* 384x280, 0x00RRGGBB */
 void display_report(void);
 void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 = RL7, 5 = DYUV ... */
 void display_maybe_dump(void);
+void display_save_tables(void);
+void display_restore_tables(void);
 extern unsigned dump_at_ms;
 
 /* window.c - SDL window, frame pacing and input */

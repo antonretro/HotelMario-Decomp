@@ -235,12 +235,15 @@ static void fork_child(void)
     cpu.a[7] = params;
     cdrtos_get_intercept(&old_handler, &old_data);
     cdrtos_set_intercept(0, 0);
+    display_save_tables();
     in_child = 1;
     if (!setjmp(child_exit))
         interp_call(m + exec);
     in_child = 0;
     interp_reset();
     field_signal = 0;                                       /* the child's per-field signal ends with it */
+    cdrtos_kill();                                          /* so does any playback it left running */
+    display_restore_tables();                               /* and the game's own display tables return */
     cdrtos_set_intercept(old_handler, old_data);
     fprintf(stderr, "  [os9] child %s finished\n", name);
     cpu = parent;
@@ -488,6 +491,7 @@ void os9_trap(int n, uint32_t code)
             if (press_every && polls % press_every < 20) buttons |= 1;
             cpu.d[0] = (uint32_t)buttons;
             cpu.d[1] = ((uint32_t)py << 16) | (uint32_t)px;
+            if (trace && polls < 400) fprintf(stderr, "  [input] pointer read on %s -> buttons %d\n", p->name, buttons);
         } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
             cdrtos_play(p->f, cpu.a[0]);
         } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */
