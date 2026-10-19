@@ -11,7 +11,8 @@
  *
  * Instructions: top byte = opcode, low 24 bits = data.
  *   0x10       no operation                        0x40-0x4F  load display start address (owning plane)
- *   0x80-0xBF  palette entry (bank*64 + low 6 bits) 0xC0       image coding (A: bits 0-3, B: bits 8-11)
+ *   0x80-0xBF  palette entry (bank*64 + low 6 bits) 0xC0       image coding (A: bits 0-3, B: bits 8-11;
+ *                                                             0 off, 1 CLUT8, 3 CLUT7, 5 DYUV, B CLUT4)
  *   0xC1       transparency control                0xC2       plane order
  *   0xC3       palette bank for following loads    0xC4/0xC6  transparent colour A / B
  *   0xCD       backdrop colour                     0xDB/0xDC  image contribution (brightness) A / B
@@ -57,10 +58,10 @@ static void instr(uint32_t v, int plane)
     if ((op & 0xF0) == 0x40) { vs.line_addr[plane] = data; return; }
     switch (op) {
     case 0xC0:
-        /* The game ends each FCT with 0x081010 (codings 0); since the planes are visible on a real
-           player, a 0 coding is taken as "unchanged" until the meaning of those bits is known. */
-        if (data & 0xF) vs.coding[0] = data & 0xF;
-        if ((data >> 8) & 0xF) vs.coding[1] = (data >> 8) & 0xF;
+        /* Image coding for both planes (0 = off). The game's FCT ends with 0x081010 (planes off) and its
+           LCT switches them on at line 2: 0x081515 = DYUV for full-colour stills, 0x081313 = CLUT7. */
+        vs.coding[0] = data & 0xF;
+        vs.coding[1] = (data >> 8) & 0xF;
         break;
     case 0xC1: vs.transp_ctl = data; break;
     case 0xC2: vs.order = data; break;
@@ -71,6 +72,14 @@ static void instr(uint32_t v, int plane)
     case 0xDB: vs.icf[0] = data & 0x3F; break;
     case 0xDC: vs.icf[1] = data & 0x3F; break;
     }
+}
+
+static void log_write(const char *how, uint32_t t, uint32_t where, uint32_t v)
+{
+    int op = (int)(v >> 24);
+    if (trace && (op == 0x78 || op == 0xC0 || op == 0xC1))
+        fprintf(stderr, "  [dcp] %s table %u @%u: %08x at %lu ms\n", how, t, where, v,
+                (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
 }
 
 /* I$SetStt fn 0x56 on the video path: d2 = dc_* sub-function, arguments in d3.. and a0 */
@@ -92,10 +101,16 @@ void display_setstt(void)
         break;
     case 0x02:                                  /* dc_wrfct(fct, start, count, buf) */
         for (i = 0; i < (cpu.d[5] & 0xFFFF) && t < NTAB; i++)
-            if ((cpu.d[4] & 0xFFFF) + i < FCT_SLOTS) fct[t][(cpu.d[4] & 0xFFFF) + i] = rd32(cpu.a[0] + 4 * i);
+            if ((cpu.d[4] & 0xFFFF) + i < FCT_SLOTS) {
+                fct[t][(cpu.d[4] & 0xFFFF) + i] = rd32(cpu.a[0] + 4 * i);
+                log_write("wrfct", t, (cpu.d[4] & 0xFFFF) + i, rd32(cpu.a[0] + 4 * i));
+            }
         break;
     case 0x04:                                  /* dc_wrfi(fct, slot, instruction) */
         if (t < NTAB && (cpu.d[4] & 0xFFFF) < FCT_SLOTS) fct[t][cpu.d[4] & 0xFFFF] = cpu.d[5];
+        if (trace && ((cpu.d[5] >> 24) & 0xF8) == 0x78)
+            fprintf(stderr, "  [dcp] decoder setting %08x (FCT %u slot %u) at %lu ms\n", cpu.d[5], t, cpu.d[4] & 0xFFFF,
+                    (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
         if (trace && ((cpu.d[5] >> 24) == 0xDB || (cpu.d[5] >> 24) == 0xDC))
             fprintf(stderr, "  [dcp] brightness %c = %u (FCT %u slot %u) at %lu ms\n", (cpu.d[5] >> 24) == 0xDB ? 'A' : 'B',
                     cpu.d[5] & 0x3F, t, cpu.d[4] & 0xFFFF, (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
@@ -104,13 +119,16 @@ void display_setstt(void)
         uint32_t line = cpu.d[4] & 0xFFFF, col = cpu.d[5] & 0xFFFF, nl = cpu.d[6] & 0xFFFF, nc = cpu.d[7] & 0xFFFF;
         for (i = 0; i < nl && t < NTAB; i++)
             for (j = 0; j < nc; j++)
-                if (line + i < LCT_LINES && col + j < LCT_COLS)
+                if (line + i < LCT_LINES && col + j < LCT_COLS) {
                     lct[t][line + i][col + j] = rd32(cpu.a[0] + 4 * (i * nc + j));
+                    log_write("wrlct", t, line + i, rd32(cpu.a[0] + 4 * (i * nc + j)));
+                }
         break;
     }
     case 0x0A:                                  /* dc_wrli(lct, line, col, instruction) */
         if (t < NTAB && (cpu.d[4] & 0xFFFF) < LCT_LINES && (cpu.d[5] & 0xFFFF) < LCT_COLS)
             lct[t][cpu.d[4] & 0xFFFF][cpu.d[5] & 0xFFFF] = cpu.d[6];
+        log_write("wrli", t, cpu.d[4] & 0xFFFF, cpu.d[6]);
         break;
     default:                                    /* links (dc_flnk joins an FCT and an LCT), exec, signals:
                                                    for now each plane's most recently created tables are used */

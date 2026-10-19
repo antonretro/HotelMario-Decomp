@@ -1,6 +1,6 @@
 """Build the PC port: recompile cdi_hotel from your disc, then compile it with the runtime.
 
-Usage: python tools/build_port.py            -> build/port/hotel.exe
+Usage: python tools/build_port.py [exe name]   -> build/port/hotel.exe (or the given name)
 """
 import glob
 import os
@@ -45,9 +45,12 @@ def main():
         if not os.path.exists(o) or os.path.getmtime(o) < max([os.path.getmtime(s)] + [os.path.getmtime(h) for h in headers]):
             subprocess.run([GCC, "-c"] + flags + [s, "-o", o], check=True)
         objs.append(o)
-    exe = os.path.join(OUT, "hotel.exe")
+    exe = os.path.join(OUT, sys.argv[1] if len(sys.argv) > 1 else "hotel.exe")  # e.g. hotel_dev.exe while one runs
     subprocess.run([GCC] + objs + ["-L" + os.path.join(SDL, "lib"), "-lSDL2", "-o", exe], check=True)
-    shutil.copy(os.path.join(SDL, "bin", "SDL2.dll"), OUT)
+    try:
+        shutil.copy(os.path.join(SDL, "bin", "SDL2.dll"), OUT)
+    except PermissionError:  # a running copy of the game has it open; it is already there
+        pass
     print("built", exe)
 
 
