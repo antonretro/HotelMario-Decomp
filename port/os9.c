@@ -179,8 +179,29 @@ static void link_module(void)
     ok();
 }
 
-/* F$Event: d1.w = function. Events are kept as simple counters; waits return at once for now
-   (the real vertical-blank timing comes from the video layer later). */
+/* Real-time waits: keep feeding the disc, delivering signals and redrawing the window meanwhile. */
+static void wait_ms(unsigned ms)
+{
+    clock_t end = clock() + (clock_t)ms * CLOCKS_PER_SEC / 1000;
+    while (clock() < end) {
+        rt_poll();
+        window_sleep(1);
+    }
+}
+
+static void wait_next_field(void)   /* 50 fields per second, like a PAL CD-i */
+{
+    static clock_t next;
+    clock_t now = clock(), field = CLOCKS_PER_SEC / 50;
+    if (!next || now - next > 5 * field) next = now;   /* resync after long gaps */
+    next += field;
+    while (clock() < next) {
+        rt_poll();
+        window_sleep(1);
+    }
+}
+
+/* F$Event: d1.w = function. Events are kept as simple counters; waiting on line_event paces frames. */
 static int32_t events[16];
 static char event_names[16][32];
 static int nevents = 1;
@@ -206,6 +227,13 @@ static void os9_event(void)
         break;
     case 4:   /* Ev$Wait: d0 = id, d2/d3 = range -> d1 = value */
     case 5:   /* Ev$WaitR */
+        /* The video driver's "line_event" fires once per field: waiting on it is the game's frame timer
+           (fades, animation). Block until the next 50 Hz field, keeping playback and the window going. */
+        if (!strcmp(event_names[cpu.d[0] & 15], "line_event")) wait_next_field();
+        else rt_poll();
+        cpu.d[1] = (uint32_t)events[cpu.d[0] & 15];
+        ok();
+        break;
     case 6:   /* Ev$Read */
         rt_poll();
         cpu.d[1] = (uint32_t)events[cpu.d[0] & 15];
@@ -244,7 +272,11 @@ void os9_trap(int n, uint32_t code)
         exit((int)(cpu.d[1] & 0xFF));
     case 0x07: cpu.d[0] = cpu.d[0] ? cpu.d[0] : 0x2600; cpu.a[1] = DATA_BASE + cpu.d[0]; ok(); break; /* F$Mem */
     case 0x09: cdrtos_set_intercept(cpu.a[0], cpu.a[6]); ok(); break;  /* F$Icpt: a0 handler, a6 its data */
-    case 0x0A: rt_poll(); cpu.d[0] = 0; ok(); break;                   /* F$Sleep */
+    case 0x0A:                                                         /* F$Sleep: d0 ticks (1/100 s), 0 = until a signal */
+        wait_ms(cpu.d[0] ? cpu.d[0] * 10 : 10);
+        cpu.d[0] = 0;
+        ok();
+        break;
     case 0x1E: cdrtos_rte(); ok(); break;                              /* F$RTE: end of signal intercept */
     case 0x0C: cpu.d[0] = 2; cpu.d[1] = 0; ok(); break;                /* F$ID */
     case 0x15: {                                                       /* F$Time: Gregorian */

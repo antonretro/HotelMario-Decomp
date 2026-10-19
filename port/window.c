@@ -92,6 +92,18 @@ void window_tick(void)
     SDL_RenderPresent(ren);
 }
 
+void window_sleep(int ms)
+{
+    if (headless || !win) {
+#ifdef _WIN32
+        extern void __stdcall Sleep(unsigned long);
+        Sleep((unsigned long)ms);
+#endif
+        return;
+    }
+    SDL_Delay((Uint32)ms);
+}
+
 void window_pointer(int *x, int *y, int *buttons)
 {
     window_tick();

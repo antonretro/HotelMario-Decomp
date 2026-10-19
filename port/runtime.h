@@ -32,5 +32,6 @@ void display_report(void);
 void window_init(void);
 void window_tick(void);               /* called often; redraws ~50 times a second, reads input */
 void window_pointer(int *x, int *y, int *buttons);
+void window_sleep(int ms);
 
 #endif
