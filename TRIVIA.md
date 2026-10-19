@@ -80,10 +80,16 @@ Read from the 1993 prototype's disassembly (`build/proto/asm`):
 - The prototype's disc label credits "Goldberg, Lohff, Hunt". Retail adds "Martin".
 
 ## Code streamed off the disc
-The intro's real-time file (`intro.rtf`, channel 16) carries an OS-9 **code module** among its video and audio data.
-It's 68000 code made of long runs of `move.b/move.l #value,(a1)+` ending in `rts`, which looks like a "compiled sprite"
-(a picture stored as the instructions that draw it). So part of the intro is executed rather than decoded, and the port
-needs to handle it.
+Most of Hotel Mario's code isn't in the program file at all. The data channel of each real-time file streams OS-9
+**code modules**, which the game loads into memory and calls: 172 different ones, about 14 MB with 2.16 million
+68000 instructions (the main program `cdi_hotel` has about 35,000). There's a `Ln_sNN_sub.o` and a
+`Ln_sNN_subT.o` for every stage of every hotel, plus `intro_sub.o` and `mario_set_sub.o`.
+(`tools/rtf_modules.py` lists them.)
+- About two-thirds of those instructions are **compiled sprites**: pictures stored as code. They are long runs of
+  `move.l/move.w/move.b #value,(a1)+` with `adda.l #skip,a1` between rows, so drawing a picture means
+  running it, with no decoding.
+- The rest is ordinary compiled C (around 10,000 functions), so per-stage game logic also lives in
+  these modules, not only graphics.
 
 ## Hand-written assembly
 34 game functions were written directly in 68000 assembly rather than C, mostly fast screen
