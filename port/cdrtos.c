@@ -131,6 +131,31 @@ void cdrtos_pause(int paused)
     play.fed = 0;
 }
 
+/* Bytes already written into each PCL's buffer (form 1 and form 2 sectors differ in size, so the
+   sector count alone isn't enough). Keyed by PCL address; reset whenever the game zeroes the count. */
+#define NFILL 64
+static struct { uint32_t pcl, bytes; } fills[NFILL];
+
+static uint32_t fill_offset(uint32_t pcl)
+{
+    int i;
+    for (i = 0; i < NFILL; i++)
+        if (fills[i].pcl == pcl) return fills[i].bytes;
+    return 0;
+}
+
+static void set_fill_offset(uint32_t pcl, uint32_t bytes)
+{
+    int i, free_slot = -1;
+    for (i = 0; i < NFILL; i++) {
+        if (fills[i].pcl == pcl) { fills[i].bytes = bytes; return; }
+        if (!fills[i].pcl && free_slot < 0) free_slot = i;
+    }
+    if (free_slot < 0) free_slot = (int)(pcl >> 2) % NFILL;
+    fills[free_slot].pcl = pcl;
+    fills[free_slot].bytes = bytes;
+}
+
 /* Put one sector into the matching channel's current buffer and send the signals it causes. */
 static void feed_sector(void)
 {
@@ -155,7 +180,9 @@ static void feed_sector(void)
     if (list && (pcl = rd32(list + ch * 4)) != 0) {
         int size = (sm & 0x20) ? 2324 : 2048;
         uint32_t cnt = rd32(pcl + 0x18), buf = rd32(pcl + 0x0a), bsz = rd32(pcl + 0x0e);
-        if (buf) memcpy(RAM + ((buf + cnt * size) & RAM_MASK), s + 24, size);
+        uint32_t at = cnt ? fill_offset(pcl) : 0;   /* sectors are packed back to back, whatever their form */
+        if (buf) memcpy(RAM + ((buf + at) & RAM_MASK), s + 24, size);
+        set_fill_offset(pcl, at + size);
         wr8(pcl + 1, sm);
         wr8(pcl + 3, ci);
         wr32(pcl + 0x18, ++cnt);

@@ -343,7 +343,8 @@ class Func:
                 self.missing[f"{i.mnemonic}: {what}"] += 1
                 lines = [f"unimpl(0x{i.address:x}, \"{i.mnemonic} {i.op_str}\");"]
             body.append((i.address, i.mnemonic + " " + i.op_str, lines))
-        out = [f"/* {self.name} @ 0x{self.start:x} */", f"void {cfn(self.start)}(void)", "{"]
+        out = [f"/* {self.name} @ 0x{self.start:x} */", f"void {cfn(self.start)}(void)", "{",
+               f"    if (watch_pc == 0x{self.start:x}u) watch_hit(0x{self.start:x}u);"]
         if self.dynamic_jump:
             self.labels |= self.addrs
             cases = " ".join(f"case 0x{a:x}: goto L_{a:x};" for a in sorted(self.addrs))

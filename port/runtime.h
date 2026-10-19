@@ -12,6 +12,7 @@ extern int trace;
 
 void os9_init(void);
 RecompFn recomp_lookup(uint32_t addr);
+void interp_call(uint32_t addr);   /* interp.c: run non-recompiled code on Musashi */
 
 /* cdrtos.c - CD-RTOS real-time playback and signal delivery */
 void cdrtos_set_intercept(uint32_t handler, uint32_t data);

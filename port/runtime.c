@@ -20,6 +20,13 @@ extern const int recomp_count;
 
 const char *fs_root = "build/eu/fs";
 int trace = 0;
+uint32_t watch_pc = 0xFFFFFFFFu;
+
+void watch_hit(uint32_t addr)
+{
+    fprintf(stderr, "  [watch] 0x%x: d0=%08x d1=%08x a0=%08x a7=%08x ret=%08x\n", addr, cpu.d[0], cpu.d[1], cpu.a[0],
+            cpu.a[7], rd32(cpu.a[7]));
+}
 
 static const char *name_of(uint32_t addr)
 {
@@ -53,8 +60,9 @@ void call_addr(uint32_t addr, uint32_t ret)
         addr = rd32(addr + 2);
     fn = lookup(addr);
     if (!fn) {
-        fprintf(stderr, "call to unknown address 0x%x (from 0x%x, in %s)\n", addr, ret, name_of(ret));
-        exit(2);
+        /* no recompiled version (e.g. a code module streamed from the disc): interpret it */
+        interp_call(addr);
+        return;
     }
     if (trace) fprintf(stderr, "  call %s\n", name_of(addr));
     PUSH32(ret);
@@ -110,6 +118,7 @@ int main(int argc, char **argv)
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--trace")) trace = 1;
+        else if (!strcmp(argv[i], "--watch") && i + 1 < argc) watch_pc = (uint32_t)strtoul(argv[++i], 0, 16);
         else fs_root = argv[i];
     }
 

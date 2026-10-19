@@ -247,4 +247,8 @@ void     unimpl(uint32_t addr, const char *what);  /* reached code the recompile
 extern unsigned poll_ctr;
 void     rt_poll(void);
 
+/* debugging: --watch <hex address> prints the registers whenever that function is entered */
+extern uint32_t watch_pc;
+void     watch_hit(uint32_t addr);
+
 #endif
