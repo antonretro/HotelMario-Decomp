@@ -7,9 +7,9 @@
  },
  "matching": true,
  "bytes_total": 93624,
- "bytes_c": 11144,
+ "bytes_c": 12036,
  "funcs_total": 208,
- "funcs_c": 36,
+ "funcs_c": 42,
  "funcs_asmsrc": 34,
  "bytes_disassembled": 92792,
  "functions": [
@@ -353,7 +353,7 @@
    "name": "init_audio",
    "addr": 26162,
    "size": 164,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -675,7 +675,7 @@
    "name": "in_do_wait",
    "addr": 52144,
    "size": 120,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -843,14 +843,14 @@
    "name": "nvram_open_read",
    "addr": 61864,
    "size": 176,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "nvram_open_write",
    "addr": 62040,
    "size": 164,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1382,14 +1382,14 @@
    "name": "ds_link_map_module",
    "addr": 92054,
    "size": 136,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_link_map_data",
    "addr": 92190,
    "size": 132,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {

@@ -16,7 +16,9 @@
 typedef struct gds {
     int   path;             /* 0x000: video device path */
     int   unk004_sound;     /* 0x004: sound map id */
-    char  unk008[0x10 - 0x8];
+    short *sound_info;      /* 0x008: from sm_info; the first short is the sound map's id for sd_loop */
+    short unk00c;
+    short sound_unk00e;     /* 0x00e: cleared by init_audio */
     long  afx[17];          /* 0x010: start offsets of the 16 audio effects, plus end marker */
     char  unk054[0x5a - 0x54];
     int   fct;              /* 0x05a: field control table id, plane A */
@@ -38,7 +40,11 @@ typedef struct gds {
 typedef struct ds_file {
     int   path;             /* 0x00: OS-9 path to the disc file */
     char *map;              /* 0x04: linked .map module */
-    char  unk08[0x1c - 0x08];
+    long  map_count;        /* 0x08: first short of the map data */
+    char *map_entries;      /* 0x0c: map data + 8 */
+    char *map_tab10;        /* 0x10: three tables at offsets given in the map header */
+    char *map_tab14;
+    char *map_tab18;
 } DS_FILE;
 
 /* A stream buffer descriptor (0x16 bytes; ds_buffer_init fills it). */
@@ -113,12 +119,21 @@ int  ds_buffer_init();
 int  ds_buffer_set_init();
 unsigned char *ds_init_decode();
 int  dm();
+char *csd_devname();
+int  nvr_available();
+int  nvram_read();
+int  nvram_write();
+int  ds_link_map_data();
 
 /* CD-i system calls (CD-RTOS bindings) */
 int  ss_cont();
 int  ss_pause();
 int  ss_abort();
 int  sm_off();
+int  sm_creat();
+short *sm_info();
+int  sd_loop();
+int  sc_atten();
 int  gs_free();
 int  _gs_pos();
 
@@ -129,6 +144,8 @@ int  dc_wrfi();
 /* OS-9 calls (Microware clib) */
 char *srqcmem();
 int  munlink();
+char *modlink();
+char *modloadp();
 long _getsys();
 int  _sysdate();
 int  _ev_link();

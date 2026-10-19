@@ -75,6 +75,49 @@ ds_abort()
     return ss_abort(DsFile->path);
 }
 
+/* 0x16796: link the file's .map module (loading it from the current directory if needed) */
+ds_link_map_module(f, name)
+DS_FILE *f;
+char *name;
+{
+    int r = 0;
+    char *m;
+    char *d;
+    long *hdr;
+
+    if (f) {
+        if ((m = (char *)modlink(name, 0)) == (char *)-1)
+            m = (char *)modloadp(name, 0, 0);
+        f->map = m;
+        if (m != (char *)-1) {
+            hdr = (long *)(m + 0x30);   /* module header: offset of the module's data */
+            d = m + *hdr;
+            ds_link_map_data(f, d);
+            return r;
+        }
+    }
+    r = -1;
+    return r;
+}
+
+/* 0x1681e: point the file at the tables inside the map data (header: count, then three short offsets) */
+ds_link_map_data(f, d)
+DS_FILE *f;
+short *d;
+{
+    int r = 0;
+
+    if (f) {
+        f->map_count = d[0];
+        f->map_tab14 = (char *)d + d[1];
+        f->map_tab10 = (char *)d + d[2];
+        f->map_tab18 = (char *)d + d[3];
+        f->map_entries = (char *)(d + 4);
+    } else
+        r = -1;
+    return r;
+}
+
 /* 0x168a2 */
 ds_open(f, name)
 DS_FILE *f;
