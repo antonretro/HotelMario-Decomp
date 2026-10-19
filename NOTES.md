@@ -1,5 +1,16 @@
 # Hotel Mario decomp - recon notes
 
+## Direction (decided 2026-10-19)
+- **Main goal: a matching decompilation** of `cdi_hotel` (C that rebuilds the original module byte-for-byte),
+  then of the streamed code modules. No matching decomp of a CD-i game is known to exist.
+- **Side project: the BIOS-free port** (`port/`) aimed at Wii and 3DS. It reimplements CD-RTOS, so it needs
+  only the user's disc. Status: Philips logo and Fantasy Factory logo run; it stalls before the intro
+  animation, and sound-map (`sm_*`) audio isn't emulated.
+- **Prior art:** [cdirecomp](https://github.com/mstan/cdirecomp) by mstan (R.A.I.D. community) is a CD-i
+  static recompiler that runs Hotel Mario into gameplay using a user-supplied CD-i system ROM. It's licensed
+  PolyForm Noncommercial, so we don't copy its code; its docs are fine to learn hardware/OS behaviour from.
+  It is not a decompilation.
+
 ## Target
 - **Hotel Mario (Europe)** CD-i, `.bin` SHA1 `8D671F7BC729ED8D6A07D1D40BA48CBC9530BD30`
 - Disc label: CD-RTOS, volume "Hotel Mario", created 1994-04-06, prepared by Fantasy Factory
