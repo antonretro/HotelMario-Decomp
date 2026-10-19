@@ -15,7 +15,8 @@
 /* Offsets follow the 68000 layout (longs on 2-byte boundaries); the port will load this differently. */
 typedef struct gds {
     int   path;             /* 0x000: video device path */
-    char  unk004[0x10 - 0x4];
+    int   unk004_sound;     /* 0x004: sound map id */
+    char  unk008[0x10 - 0x8];
     long  afx[17];          /* 0x010: start offsets of the 16 audio effects, plus end marker */
     char  unk054[0x5a - 0x54];
     int   fct;              /* 0x05a: field control table id */
@@ -29,7 +30,32 @@ typedef struct gds {
     char  unk228[0x23c - 0x228];
     char *font;             /* 0x23c: font used by alphablit */
     long *afx_sizes;        /* 0x240: size of each audio effect */
+    char  unk244[0x832 - 0x244];
+    short sound_state;      /* 0x832: 2 while a sound map is still queued */
 } GDS;
+
+/* An open real-time file for the disc streaming ("ds") layer: 0x1c bytes, set to 0xff by ds_open. */
+typedef struct ds_file {
+    int   path;             /* 0x00: OS-9 path to the disc file */
+    char *map;              /* 0x04: linked .map module */
+    char  unk08[0x1c - 0x08];
+} DS_FILE;
+
+/* disc streaming globals */
+extern DS_FILE *DsFile;
+extern short DsPcb;                 /* play control block status; bit 8 = playback finished */
+extern short DsPcbError;            /* -$5e16(a6): error code after DsPcb (no symbol) */
+extern short DsFlags;
+extern int (*DsEorFunction)();
+extern int (*DsTriggerFunction)();
+extern int (*DsErrorFunction)();
+extern char *DS_dispatch_Q_start, *DS_dispatch_Q_end, *DS_dispatch_Q_head, *DS_dispatch_Q_tail;
+
+extern DS_FILE myrtf[];             /* real-time files of the game, indexed by cd_rtf */
+extern char mychan[];               /* channel selection for ds_play */
+extern long ds_index;
+extern int  cd_rtf, cd_eors, cd_retry;
+extern int (*termfunc)();
 
 /* globals (a6-relative, names from the symbol table) */
 extern char cd_play_flag;
@@ -46,11 +72,29 @@ int  hm_error();
 int  player_clut_change();
 int  ds_dispatch_execute();
 
+int  ds_init_channels();
+int  ds_seek();
+int  ds_play();
+int  seekNplay();
+int  dsTRIGcb();
+int  dsERRORcb();
+int  dm();
+
+/* CD-i system calls (CD-RTOS bindings) */
+int  ss_cont();
+int  ss_pause();
+int  ss_abort();
+int  sm_off();
+int  gs_free();
+int  _gs_pos();
+
 /* CD-i display control (CD-RTOS) */
 int  dc_wrli();
 int  dc_wrfi();
 
 /* OS-9 calls (Microware clib) */
+char *srqcmem();
+int  munlink();
 int  _sysdate();
 int  _ev_link();
 int  _ev_wait();

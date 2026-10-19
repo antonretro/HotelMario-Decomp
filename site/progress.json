@@ -7,9 +7,9 @@
  },
  "matching": true,
  "bytes_total": 93624,
- "bytes_c": 9226,
+ "bytes_c": 10272,
  "funcs_total": 208,
- "funcs_c": 12,
+ "funcs_c": 28,
  "funcs_asmsrc": 34,
  "bytes_disassembled": 92792,
  "functions": [
@@ -66,14 +66,14 @@
    "name": "dsERRORcb",
    "addr": 4532,
    "size": 70,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "cd_terminate",
    "addr": 4602,
    "size": 66,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -87,14 +87,14 @@
    "name": "cd_init",
    "addr": 4694,
    "size": 76,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "seekNplay",
    "addr": 4770,
    "size": 104,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -150,7 +150,7 @@
    "name": "cd_smq",
    "addr": 6564,
    "size": 64,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -535,7 +535,7 @@
    "name": "movi_stan",
    "addr": 43372,
    "size": 88,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1305,28 +1305,28 @@
    "name": "ds_buffer_init",
    "addr": 89968,
    "size": 74,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_buffer_set_init",
    "addr": 90042,
    "size": 52,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_close",
    "addr": 90094,
    "size": 54,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_cont",
    "addr": 90148,
    "size": 42,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1368,14 +1368,14 @@
    "name": "ds_init",
    "addr": 91948,
    "size": 26,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_abort",
    "addr": 91974,
    "size": 80,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1396,14 +1396,14 @@
    "name": "ds_open",
    "addr": 92322,
    "size": 78,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "ds_pause",
    "addr": 92400,
    "size": 46,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1445,7 +1445,7 @@
    "name": "ds_dispatcher_init",
    "addr": 94174,
    "size": 58,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1466,7 +1466,7 @@
    "name": "nvr_available",
    "addr": 94430,
    "size": 68,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   }
  ]
