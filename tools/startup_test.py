@@ -9,6 +9,8 @@ Milestones, in order:
   intro_anim  the game reaches the intro animation (sector 80 of intro.rtf)
   intro_more  the game reaches the next intro part (sector 157)
   intro_end   the intro cartoon streams to its end (sector 3782); the title screen follows
+  logo_sound  audio sectors reached the speakers during the Philips logo (its jingle)
+  intro_sound and during the intro (speech)
 and that nothing crashed ("stopped:" in the log).
 """
 import os
@@ -24,6 +26,8 @@ CHECKS = [
     ("intro_anim", r"play from sector 80:"),
     ("intro_more", r"play from sector 157:"),
     ("intro_end", r"end of play[^\n]* at sector 3782"),
+    ("logo_sound", r"at sector 624 \([1-9]\d* audio sectors"),       # the Philips jingle reached the speakers
+    ("intro_sound", r"at sector 3782 \([1-9]\d{2,} audio sectors"),  # and the intro speech after it
 ]
 
 

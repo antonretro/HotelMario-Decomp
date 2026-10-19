@@ -51,6 +51,7 @@ void window_sleep(int ms);
 
 /* audio.c - streamed CD-i ADPCM audio through SDL */
 void audio_init(void);
+extern const char *wav_path;          /* --wav <file> */
 void audio_sector(const uint8_t *payload, int coding);
 void audio_stop(void);
 unsigned long audio_sector_count(void);

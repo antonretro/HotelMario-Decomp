@@ -28,7 +28,7 @@ int headless;
 
 void window_init(void)
 {
-    if (headless) return;
+    if (headless) { audio_init(); return; }    /* no device, but --wav still records */
     SDL_SetMainReady();
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
         fprintf(stderr, "SDL: %s - running without a window\n", SDL_GetError());

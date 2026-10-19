@@ -9,8 +9,8 @@
 - **Side project: the BIOS-free port** (`port/`) aimed at Wii and 3DS. It reimplements CD-RTOS, so it needs
   only the user's disc. Status (2026-10-19): boots with no input through the Philips logo, Fantasy
   Factory logo and the whole intro cartoon to the title screen, all looking right; the attract demo
-  starts after a while. Not yet checked: gameplay, menus with input, sound (intro speech isn't heard yet;
-  sound-map `sm_*` audio isn't emulated).
+  starts after a while, with the Philips jingle, intro speech and title music. Not yet checked: gameplay,
+  menus with input; in-game sound-map (`sm_*`) music and effects aren't emulated.
 - **Prior art:** [cdirecomp](https://github.com/mstan/cdirecomp) by mstan (R.A.I.D. community) is a CD-i
   static recompiler that runs Hotel Mario into gameplay using a user-supplied CD-i system ROM. It's licensed
   PolyForm Noncommercial, so we don't copy its code; its docs are fine to learn hardware/OS behaviour from.
@@ -140,6 +140,22 @@ The key is compared ignoring the mask register (`0xC7`/`0xC9`) and the low 2 bit
 The game's `set_up_clut` writes `0xC4 + palette colour 0` into **the table of the plane whose palette it
 loads**, so the key belongs to the plane whose table runs the instruction. The port used to send every
 `0xC4` to plane A, so plane B's sky colour kept overwriting A's key.
+
+### Sound: which audio is played and which goes to RAM
+`PCB_AChan` (the manual calls it the "audio to memory selection mask") means the **audio processor's**
+memory: audio sectors on those channels are played. Audio sectors on channels selected in `PCB_Chan` but
+not in `AChan` go to the program's RAM through the audio PCLs. The Philips logo program proves it: it plays
+with `AChan = 0x8000` and no audio PCL for channel 15, and its jingle is heard on a real player. The port
+had it the other way round, so nothing was heard. With the fix:
+- Philips logo jingle: `bumper.rtf` channel 15, Level B stereo (149 sectors).
+- Intro speech: `intro.rtf` channel 15, Level C mono (18.9 kHz), sectors 133-3782.
+- Title music: `intro.rtf` channel 15, Level B stereo (37.8 kHz), from sector 3904.
+  `intro.rtf` also has three more Level B channels (12-14) from sector 7440.
+- In-game music goes the other way: `cd_smap` streams audio into a one-sector **sound map** in RAM
+  (`init_audio`: `sm_creat(path, 3 = Level B stereo, 0x12 groups, &addr)`, `sd_loop(..., -1)` loops it for
+  ever). `cd_mix` starts it with `sm_out` on the first buffer and then ORs sound effects (`cd_xbuf`) into
+  it. The port doesn't emulate sound maps yet.
+- `--wav <file>` records everything played (44.1 kHz stereo), also with `--headless`.
 
 ### Debugging aids
 - `--dump-every <ms>` writes `build/port/frames/<ms>.rgb` plus `_A`/`_B` (each plane alone);

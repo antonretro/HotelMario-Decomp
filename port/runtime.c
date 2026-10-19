@@ -123,6 +123,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--headless")) headless = 1;
         else if (!strcmp(argv[i], "--dump-at") && i + 1 < argc) dump_at_ms = (unsigned)atoi(argv[++i]);
         else if (!strcmp(argv[i], "--dump-every") && i + 1 < argc) dump_every_ms = (unsigned)atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav_path = argv[++i];
         else fs_root = argv[i];
     }
 

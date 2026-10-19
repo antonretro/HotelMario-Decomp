@@ -18,8 +18,8 @@
  * The PCB signal goes out at each end of record and trigger bit and when the play ends; the status bits
  * and the three ways a play ends are described at end_play_how() below. The error code is written into
  * PCB_Sig, as the manual describes for the drive's asynchronous operations.
- * Audio sectors on channels in PCB_AChan go to memory (the audio PCLs); other selected audio channels
- * go to the audio decoder, i.e. the speakers.
+ * Audio sectors on channels in PCB_AChan go to the audio processor's memory, i.e. they are played; other
+ * selected audio channels go to the program's RAM through the audio PCLs (see feed_sector).
  * Sectors are fed at the real single-speed rate (75 per second) from rt_poll().
  */
 #include <setjmp.h>
@@ -221,14 +221,23 @@ static void feed_sector(void)
     sm = s[18];
     ci = s[19];
 
-    /* audio: channels in PCB_AChan go to memory, other selected channels to the decoder (speakers) */
-    if ((sm & 0x04) && ((rd32(pcb + 8) >> ch) & 1) && !(ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1)))
+    /* audio: PCB_AChan ("audio to memory") means the audio processor's memory, i.e. those channels are
+       played. Other selected audio channels go to the program's RAM through the audio PCLs (that's how
+       the game streams music into its sound map). The Philips logo program shows it: AChan 0x8000 and no
+       audio PCL for channel 15, and its jingle plays on a real player. */
+    if ((sm & 0x04) && ((rd32(pcb + 8) >> ch) & 1) && ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1))
         audio_sector(s + 24, ci);
 
     if (sm & 0x02) { list = rd32(pcb + 0x0e); base = 0xFF00; }
-    else if (sm & 0x04) { list = (ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1)) ? rd32(pcb + 0x12) : 0; base = 0xFE00; }
+    else if (sm & 0x04) { list = (ch < 16 && ((rd16(pcb + 0x0c) >> ch) & 1)) ? 0 : rd32(pcb + 0x12); base = 0xFE00; }
     else if (sm & 0x08) { list = rd32(pcb + 0x16); base = 0xFD00; }
     if (!((rd32(pcb + 8) >> ch) & 1)) list = 0;
+    if (trace && base == 0xFE00) {                /* audio to memory: where does it go? */
+        static unsigned logged;
+        if (logged++ < 12)
+            fprintf(stderr, "  [cd-i] audio sector %ld ch%d coding %02x: audio list %x, PCL %x\n", play.sector - 1, ch, ci,
+                    list, list ? rd32(list + ch * 4) : 0);
+    }
 
     if (list && (pcl = rd32(list + ch * 4)) != 0) {
         int size = (sm & 0x20) ? 2324 : 2048;

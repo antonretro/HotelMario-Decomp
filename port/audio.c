@@ -13,6 +13,22 @@
 #define OUT_RATE 44100
 
 static SDL_AudioDeviceID dev;
+const char *wav_path;          /* --wav <file>: also write everything played (44.1 kHz stereo) to a WAV file */
+static FILE *wav;
+static uint32_t wav_bytes;
+
+static void wav_header(void)
+{
+    uint8_t h[44];
+    uint32_t v[] = { 36 + wav_bytes, 16, 1 | (2u << 16), OUT_RATE, OUT_RATE * 4, 4 | (16u << 16), wav_bytes };
+    memcpy(h, "RIFF", 4); memcpy(h + 4, &v[0], 4); memcpy(h + 8, "WAVEfmt ", 8); memcpy(h + 16, &v[1], 4);
+    memcpy(h + 20, &v[2], 4); memcpy(h + 24, &v[3], 4); memcpy(h + 28, &v[4], 4); memcpy(h + 32, &v[5], 4);
+    memcpy(h + 36, "data", 4); memcpy(h + 40, &v[6], 4);
+    fseek(wav, 0, SEEK_SET);
+    fwrite(h, 1, 44, wav);
+    fseek(wav, 0, SEEK_END);
+    fflush(wav);
+}
 static SDL_AudioStream *stream;
 static int stream_rate, stream_ch;
 static int hist[2][2];
@@ -24,6 +40,7 @@ static const int K1[4] = { 0, 0, -52, -55 };
 void audio_init(void)
 {
     SDL_AudioSpec want, have;
+    if (wav_path && (wav = fopen(wav_path, "wb"))) wav_header();
     if (headless) return;
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
         fprintf(stderr, "SDL audio: %s - no sound\n", SDL_GetError());
@@ -76,7 +93,7 @@ void audio_sector(const uint8_t *payload, int coding)
     static int16_t pcm[18 * 8 * 28];
     int rate = (coding & 0x04) ? 18900 : 37800, ch = (coding & 0x01) ? 2 : 1, n;
     sectors_played++;
-    if (!dev || (coding & 0x30)) return;            /* 8-bit level A is not used by this disc */
+    if ((!dev && !wav) || (coding & 0x30)) return;  /* 8-bit level A is not used by this disc */
     if (!stream || rate != stream_rate || ch != stream_ch) {
         if (stream) SDL_FreeAudioStream(stream);
         stream = SDL_NewAudioStream(AUDIO_S16SYS, (Uint8)ch, rate, AUDIO_S16SYS, 2, OUT_RATE);
@@ -90,6 +107,8 @@ void audio_sector(const uint8_t *payload, int coding)
         static uint8_t buf[65536];
         int got;
         while ((got = SDL_AudioStreamGet(stream, buf, sizeof buf)) > 0) {
+            if (wav) { fwrite(buf, 1, (size_t)got, wav); wav_bytes += (uint32_t)got; wav_header(); }
+            if (!dev) continue;
             /* keep latency bounded: if more than half a second is waiting, drop the oldest */
             if (SDL_GetQueuedAudioSize(dev) > OUT_RATE * 4 / 2) SDL_ClearQueuedAudio(dev);
             SDL_QueueAudio(dev, buf, (Uint32)got);
