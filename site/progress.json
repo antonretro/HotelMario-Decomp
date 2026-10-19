@@ -7,9 +7,9 @@
  },
  "matching": true,
  "bytes_total": 93624,
- "bytes_c": 12036,
+ "bytes_c": 13234,
  "funcs_total": 208,
- "funcs_c": 42,
+ "funcs_c": 52,
  "funcs_asmsrc": 34,
  "bytes_disassembled": 92792,
  "functions": [
@@ -38,7 +38,7 @@
    "name": "alpha_con",
    "addr": 2602,
    "size": 140,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -213,7 +213,7 @@
    "name": "luigi_hat_spit",
    "addr": 9166,
    "size": 170,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -374,7 +374,7 @@
    "name": "init_pause",
    "addr": 27200,
    "size": 154,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -479,7 +479,7 @@
    "name": "shadow_copy",
    "addr": 38504,
    "size": 86,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -521,14 +521,14 @@
    "name": "movi_sh_st_fo",
    "addr": 43164,
    "size": 104,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
    "name": "movi_sh_st_ba",
    "addr": 43268,
    "size": 104,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -822,7 +822,7 @@
    "name": "demoHelp_pt_coord",
    "addr": 58000,
    "size": 76,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -906,7 +906,7 @@
    "name": "puzzle",
    "addr": 64552,
    "size": 160,
-   "status": "asm",
+   "status": "c",
    "raw": 14
   },
   {
@@ -1011,7 +1011,7 @@
    "name": "move_screen",
    "addr": 79386,
    "size": 46,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {
@@ -1039,7 +1039,7 @@
    "name": "init_video",
    "addr": 80984,
    "size": 158,
-   "status": "asm",
+   "status": "c",
    "raw": 0
   },
   {

@@ -29,11 +29,13 @@ typedef struct gds {
     char  unk074[0xa0 - 0x74];
     char  clut[0x224 - 0xa0]; /* 0x0a0: palette data */
     long  afx_base;         /* 0x224: offset of the first audio effect */
-    char  unk228[0x23c - 0x228];
+    char  unk228[0x238 - 0x228];
+    short *demo_data;       /* 0x238: recorded demo input, read three shorts at a time */
     char *font;             /* 0x23c: font used by alphablit */
     long *afx_sizes;        /* 0x240: size of each audio effect */
     char  unk244[0x832 - 0x244];
     short sound_state;      /* 0x832: 2 while a sound map is still queued */
+    int   pause_path;       /* 0x834: input device path that signals the pause key */
 } GDS;
 
 /* An open real-time file for the disc streaming ("ds") layer: 0x1c bytes, set to 0xff by ds_open. */
@@ -124,6 +126,8 @@ int  nvr_available();
 int  nvram_read();
 int  nvram_write();
 int  ds_link_map_data();
+int  init_videnv();
+int  puzzle_2(), puzzle_3(), puzzle_4(), puzzle_5(), puzzle_7(), puzzle_8();
 
 /* CD-i system calls (CD-RTOS bindings) */
 int  ss_cont();
@@ -140,12 +144,20 @@ int  _gs_pos();
 /* CD-i display control (CD-RTOS) */
 int  dc_wrli();
 int  dc_wrfi();
+int  dc_wrfct();
+int  dc_exec();
+int  gc_hide();
+int  pt_org();
+int  pt_pos();
+int  kb_ssig();
+int  ss_enable();
 
 /* OS-9 calls (Microware clib) */
 char *srqcmem();
 int  munlink();
 char *modlink();
 char *modloadp();
+int  sigmask();
 long _getsys();
 int  _sysdate();
 int  _ev_link();
