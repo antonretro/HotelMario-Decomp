@@ -108,6 +108,17 @@ main { position: relative; max-width: 1100px; margin: 0 auto; padding: 32px 16px
 .about p, .about li { font-size: 14px; line-height: 1.6; color: var(--ink-dim); }
 .about ol { padding-left: 18px; margin: 0; }
 .about code { color: var(--door-open); font-size: 12px; }
+.port { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 16px 18px; margin: 0 0 28px; }
+.port h2 { font-family: "Press Start 2P", monospace; font-size: 12px; color: var(--trim); margin: 0 0 6px; }
+.port .lead { font-size: 14px; color: var(--ink-dim); margin: 0 0 14px; line-height: 1.6; }
+.port ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.port li { font-size: 14px; color: var(--ink-dim); display: flex; gap: 10px; align-items: baseline; line-height: 1.45; }
+.port li b { color: var(--ink); font-weight: 600; }
+.port .st { flex: none; width: 74px; font-family: "Press Start 2P", monospace; font-size: 8px; padding: 4px 0; text-align: center; border-radius: 4px; }
+.port .done { background: #6be38a26; color: var(--ok); }
+.port .wip { background: #ffd76a26; color: var(--door-open); }
+.port .todo { background: #ffffff12; color: var(--ink-dim); }
+@media (max-width: 760px) { .port ul { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .about { grid-template-columns: 1fr; } }
 footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18px 16px 30px; }
 </style>
@@ -146,6 +157,25 @@ footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18
     <div class="lobby"><div class="entrance"></div></div>
     <div class="street"></div>
   </div>
+
+  <section class="port">
+    <h2>PC PORT STATUS</h2>
+    <p class="lead">The game's main program is translated from 68000 machine code into C and runs on PC,
+      with the code it streams from the disc running on a built-in 68000 interpreter. Bring your own disc:
+      everything is read from your own copy.</p>
+    <ul>
+      <li><span class="st done">DONE</span><span><b>Boots on PC</b>: startup, memory, OS-9 system calls</span></li>
+      <li><span class="st done">DONE</span><span><b>Disc streaming</b>: real-time playback at 75 sectors/s with the game's signals</span></li>
+      <li><span class="st done">DONE</span><span><b>Streamed code</b>: 172 code modules on the disc run on the interpreter</span></li>
+      <li><span class="st done">DONE</span><span><b>Window &amp; controls</b>: keyboard and gamepad as the CD-i thumbpad</span></li>
+      <li><span class="st done">DONE</span><span><b>Video chip</b>: palettes, DYUV stills, fades, two layered planes</span></li>
+      <li><span class="st wip">WORKING</span><span><b>Intro animation</b>: run-length video decodes; it stalls waiting for the end of a stream</span></li>
+      <li><span class="st todo">NEXT</span><span><b>Sound</b>: CD-i ADPCM audio and effects through the speakers</span></li>
+      <li><span class="st todo">NEXT</span><span><b>Gameplay</b>: menus, first hotel, saves</span></li>
+      <li><span class="st todo">LATER</span><span><b>Wii and 3DS builds</b> from the same code</span></li>
+      <li><span class="st todo">LATER</span><span><b>Full decompilation</b> replacing the translated code with readable C</span></li>
+    </ul>
+  </section>
 
   <div class="about">
     <section>

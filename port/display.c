@@ -120,7 +120,8 @@ void display_setstt(void)
             tab_plane[id] = (uint8_t)plane;
             tab_is_lct[id] = (uint8_t)is_lct;
             memset(is_lct ? (void *)lct[id] : (void *)fct[id], 0x10, is_lct ? sizeof lct[id] : sizeof fct[id]);
-            if (is_lct) active_lct[plane] = id; else active_fct[plane] = id;
+            if (!is_lct) active_fct[plane] = id;
+            else if (active_lct[plane] < 0) active_lct[plane] = id;   /* until dc_flnk says otherwise */
             if (trace) fprintf(stderr, "  [dcp] create %s %d for plane %c\n", is_lct ? "LCT" : "FCT", id, 'A' + plane);
             cpu.d[0] = (uint32_t)id;
         }
@@ -156,8 +157,18 @@ void display_setstt(void)
             lct[t][cpu.d[4] & 0xFFFF][cpu.d[5] & 0xFFFF] = cpu.d[6];
         log_write("wrli", t, cpu.d[4] & 0xFFFF, cpu.d[6]);
         break;
-    default:                                    /* links (dc_flnk joins an FCT and an LCT), exec, signals:
-                                                   for now each plane's most recently created tables are used */
+    case 0x0C:                                  /* dc_flnk(fct, lct): the LCT the field table uses */
+        if (t < NTAB && (cpu.d[4] & 0xFFFF) < NTAB)
+            active_lct[tab_plane[t]] = (int)(cpu.d[4] & 0xFFFF);
+        /* fall through to the trace */
+    case 0x0D:                                  /* dc_llnk */
+    case 0x0E:                                  /* dc_exec */
+        if (trace)
+            fprintf(stderr, "  [dcp] %s d3=%u d4=%u d5=%x d6=%x at %lu ms\n",
+                    (cpu.d[2] & 0xFFFF) == 0x0C ? "flnk" : (cpu.d[2] & 0xFFFF) == 0x0D ? "llnk" : "exec",
+                    cpu.d[3] & 0xFFFF, cpu.d[4] & 0xFFFF, cpu.d[5], cpu.d[6], (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+        break;
+    default:                                    /* signals etc.: nothing to draw */
         break;
     }
 }
