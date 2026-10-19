@@ -32,10 +32,11 @@ def main():
         cmd += ["-import", os.path.join(FS, "cdi_hotel"), "-loader", "BinaryLoader",
                 "-processor", "68000:BE:32:default",
                 "-preScript", "HotelSetup.py", SYMS, os.path.join(FS, "cdi_hotel_data")]
+    cmd += ["-postScript", "ApplyCC.py", os.path.join(ROOT, "asm", "funcs")]
     cmd += ["-postScript", "ExportC.py", OUT] + names
     r = subprocess.run(cmd, capture_output=True, text=True)
     for line in (r.stdout + r.stderr).splitlines():
-        if "HotelSetup:" in line or "ExportC:" in line or "ERROR" in line or "Exception" in line:
+        if any(k in line for k in ("HotelSetup:", "ApplyCC:", "ExportC:", "ERROR", "Exception", "Traceback")):
             print(line.strip())
     sys.exit(r.returncode)
 
