@@ -7,9 +7,9 @@
  },
  "matching": true,
  "bytes_total": 93624,
- "bytes_c": 8298,
+ "bytes_c": 9226,
  "funcs_total": 208,
- "funcs_c": 11,
+ "funcs_c": 12,
  "funcs_asmsrc": 34,
  "bytes_disassembled": 92792,
  "functions": [
@@ -402,7 +402,7 @@
    "name": "loading_screen",
    "addr": 32072,
    "size": 928,
-   "status": "asm",
+   "status": "c",
    "raw": 36
   },
   {

@@ -230,7 +230,7 @@ def main():
     os.makedirs(tmp, exist_ok=True)
     bad = verify(d, insns, tmp)
     files = emit(d, insns, bad, code_syms, first, idata, asmdir, data_syms)
-    split = os.path.join("build", "eu", "split")
+    split = sys.argv[4] if len(sys.argv) > 4 else os.path.join("build", "eu", "split")
     os.makedirs(split, exist_ok=True)
     open(os.path.join(split, "header.bin"), "wb").write(d[:first])
     open(os.path.join(split, "data.bin"), "wb").write(d[idata:])
