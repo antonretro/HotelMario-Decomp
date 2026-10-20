@@ -2,290 +2,451 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hotel Mario Decomp</title>
-<meta name="description" content="Progress of the matching decompilation of Hotel Mario (Philips CD-i, 1994).">
+<meta name="description" content="A matching decompilation of Hotel Mario (Philips CD-i, 1994), and a BIOS-free port that runs from your own disc. By Anton Retro.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 40'%3E%3Cpath d='M3 39V16a13 13 0 0 1 26 0v23z' fill='%23944e38' stroke='%23240e14' stroke-width='3'/%3E%3Cpath d='M16 5v34' stroke='%23240e14' stroke-width='2'/%3E%3Ccircle cx='23' cy='24' r='2.2' fill='%23ebeb0f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Luckiest+Guy&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-:root {
-  --sky1: #120b2e; --sky2: #2a1757; --sky3: #4a2a6e;
-  --brick: #8c2f2b; --brick-dark: #6b2220; --brick-line: #5a1c1a;
-  --trim: #e8b84a; --trim-dark: #b5862a;
-  --door-open: #ffd76a; --door-open-glow: #ffefb0;
-  --door-shut: #5b3a1e; --door-shut-panel: #7a5130;
-  --ink: #fff7e6; --ink-dim: #cdbfe6;
-  --card: rgba(18, 11, 46, .72); --card-line: rgba(232, 184, 74, .35);
-  --neon: #ff4f7b; --neon-glow: rgba(255, 79, 123, .6);
-  --ok: #6be38a;
-}
-* { box-sizing: border-box; }
-html, body { margin: 0; }
-body {
-  background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, var(--sky3) 100%) fixed;
-  color: var(--ink); font-family: Inter, system-ui, sans-serif; min-height: 100vh;
-}
-.stars { position: fixed; inset: 0; pointer-events: none; background-image:
-  radial-gradient(1px 1px at 10% 20%, #fff8 50%, transparent 51%),
-  radial-gradient(1px 1px at 30% 8%, #fff6 50%, transparent 51%),
-  radial-gradient(1.5px 1.5px at 70% 15%, #fffa 50%, transparent 51%),
-  radial-gradient(1px 1px at 85% 30%, #fff7 50%, transparent 51%),
-  radial-gradient(1px 1px at 55% 5%, #fff5 50%, transparent 51%),
-  radial-gradient(1.5px 1.5px at 20% 40%, #fff6 50%, transparent 51%); }
-.moon { position: fixed; top: 40px; right: 8%; width: 70px; height: 70px; border-radius: 50%;
-  background: #fff3c4; box-shadow: 0 0 40px #fff3c480; pointer-events: none; }
-.moon::after { content: ""; position: absolute; inset: 0 0 0 18px; border-radius: 50%; background: var(--sky1); opacity: .0; }
-main { position: relative; max-width: 1100px; margin: 0 auto; padding: 32px 16px 0; }
+  /* Look: the game's title screen. Blue sky, the red HOTEL MARIO logo with its dark outline, the yellow menu text, green grass,
+     wooden doors. Panels like the other Anton Retro project sites. Every number comes from progress.json (tools/progress.py). */
+  :root {
+    --ink: #240e14; --ink-2: #5b3c42;
+    --card: #fffaf0; --card-2: #f1e3c8;
+    --red: #ef1852; --red-d: #b30f3c; --red-l: #ff5c84;
+    --yellow: #ebeb0f; --yellow-l: #fff27a;
+    --grass: #52bd63; --grass-d: #2f925a; --grass-ink: #17552f;
+    --sky: #4aa5e7;
+    --wood: #944e38; --wood-l: #ad753d;
+    --hud: #1d1846; --hud-d: #0d0a26;
+    --track: #f3e7d0;
+    --r: 18px;
+    --pixel: "Press Start 2P", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; color: var(--ink); background-color: #6cc77a;
+    background-image: linear-gradient(#4aa5e7 0, #bfe4fb 480px, #7fd08a 480px, #52bd63 100%); background-attachment: fixed;
+    font: 17px/1.55 Fredoka, system-ui, sans-serif; overflow-x: hidden; }
+  a { color: var(--red-d); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+  code { font: 600 .88em ui-monospace, Consolas, monospace; }
 
-/* Neon sign */
-.sign { text-align: center; margin: 12px 0 28px; }
-.sign h1 { font-family: "Press Start 2P", monospace; font-size: clamp(22px, 5vw, 46px); margin: 0; letter-spacing: 2px;
-  color: #fff; text-shadow: 0 0 6px var(--neon), 0 0 18px var(--neon-glow), 0 0 36px var(--neon-glow); animation: flicker 6s infinite; }
-.sign .sub { font-family: "Press Start 2P", monospace; font-size: clamp(9px, 1.6vw, 12px); color: var(--trim); margin-top: 14px; letter-spacing: 1px; }
-@keyframes flicker { 0%, 92%, 100% { opacity: 1 } 93% { opacity: .55 } 94% { opacity: 1 } 96% { opacity: .7 } }
-@media (prefers-reduced-motion: reduce) { .sign h1 { animation: none; } }
+  /* outlined cartoon title like the game's logo */
+  .toon { font-family: "Luckiest Guy", Fredoka, sans-serif; font-weight: 400; letter-spacing: .02em; color: var(--red);
+    -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 rgba(36, 14, 20, .3); line-height: 1.05; margin: 0; }
+  .toon.yellow { color: var(--yellow); }
+  .toon.small { -webkit-text-stroke-width: 5px; }
 
-/* Stats */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-.stat { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 14px 16px; backdrop-filter: blur(4px); }
-.stat .k { font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .08em; }
-.stat .v { font-size: 28px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
-.stat .s { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
-.stat.ok .v { color: var(--ok); font-size: 20px; }
-.bar { height: 10px; border-radius: 5px; background: #ffffff1a; overflow: hidden; margin-top: 10px; }
-.bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--trim), var(--door-open)); }
-@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  /* cream card, and the dark HUD panel with yellow pixel labels like the game's menu */
+  .card { position: relative; background: var(--card); border: 4px solid #fff; border-radius: var(--r);
+    box-shadow: 0 4px 0 var(--card-2), 0 10px 24px rgba(20, 50, 80, .16); }
+  .pad { padding: 18px 22px; }
+  .hud { background: var(--hud); color: #fff; border: 3px solid #fff; border-radius: 10px; box-shadow: 0 0 0 3px var(--hud-d), 0 8px 20px rgba(13, 10, 38, .25); }
+  .hud .lbl { font: 400 11px/1.6 var(--pixel); color: var(--yellow); letter-spacing: .04em; text-transform: uppercase; text-shadow: 2px 2px 0 #000; }
+  .hud a { color: var(--yellow-l); }
 
-/* Controls */
-.controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-.controls input { flex: 1 1 220px; background: var(--card); border: 1px solid var(--card-line); color: var(--ink);
-  border-radius: 8px; padding: 10px 12px; font: inherit; }
-.legend { display: flex; gap: 14px; font-size: 13px; color: var(--ink-dim); flex-wrap: wrap; }
-.legend span { display: inline-flex; gap: 6px; align-items: center; }
-.legend i { width: 12px; height: 18px; border-radius: 3px 3px 0 0; display: inline-block; }
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 18px; color: #fff; font: 700 17px Fredoka, sans-serif;
+    text-decoration: none; background: linear-gradient(var(--red-l), var(--red) 55%, var(--red-d)); border: 3px solid #fff; border-radius: 999px;
+    box-shadow: 0 4px 0 #7a0a29; text-shadow: 0 2px 0 #7a0a29; cursor: pointer; transition: transform .12s; }
+  .btn.dark { background: linear-gradient(#3a3480, var(--hud) 60%, var(--hud-d)); box-shadow: 0 4px 0 var(--hud-d); text-shadow: 0 2px 0 var(--hud-d); }
+  .btn:hover { transform: translateY(-2px); } .btn:active { transform: translateY(1px) scale(.98); }
+  .btn:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible { outline: 4px solid var(--yellow); outline-offset: 3px; }
 
-/* Hotel */
-.hotel { position: relative; margin: 0 auto; }
-.roof { height: 26px; background: var(--trim); border-radius: 6px 6px 0 0; position: relative;
-  box-shadow: inset 0 -6px 0 var(--trim-dark); }
-.roof::before { content: "HOTEL"; position: absolute; left: 50%; top: -34px; transform: translateX(-50%);
-  font-family: "Press Start 2P", monospace; font-size: 14px; padding: 8px 12px; background: var(--brick-dark);
-  border: 3px solid var(--trim); color: var(--door-open); border-radius: 4px; }
-.body { display: grid; grid-template-columns: 40px 1fr 40px; background:
-  repeating-linear-gradient(0deg, var(--brick) 0 10px, var(--brick-line) 10px 11px),
-  var(--brick); border-left: 6px solid var(--brick-dark); border-right: 6px solid var(--brick-dark); }
-.shaft { background: #1c1430; border-left: 3px solid var(--trim-dark); border-right: 3px solid var(--trim-dark); position: relative; overflow: hidden; }
-.car { position: absolute; left: 3px; right: 3px; height: 54px; background: var(--trim); border-radius: 2px;
-  box-shadow: inset 0 0 0 3px var(--trim-dark); transition: top 2.5s ease-in-out; }
-.floors { display: flex; flex-direction: column; }
-.floor { border-bottom: 8px solid var(--trim-dark); padding: 10px 10px 0; position: relative; }
-.floor .label { position: absolute; left: 8px; top: 6px; font-family: "Press Start 2P", monospace; font-size: 9px;
-  color: var(--trim); background: #0006; padding: 3px 5px; border-radius: 3px; }
-.doors { display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-end; padding: 22px 0 0; }
-.door { width: 14px; height: 24px; border-radius: 7px 7px 0 0; cursor: pointer; position: relative;
-  border: 2px solid var(--trim-dark); border-bottom: 0; padding: 0; }
-.door.asm { background: var(--door-open); box-shadow: 0 0 8px var(--door-open-glow); }
-.door.c { background: linear-gradient(90deg, var(--door-shut) 0 45%, var(--door-shut-panel) 45% 55%, var(--door-shut) 55%); }
-.door.asmsrc { background: linear-gradient(90deg, var(--trim-dark) 0 45%, var(--trim) 45% 55%, var(--trim-dark) 55%); }
-.door.c::after, .door.asmsrc::after { content: ""; position: absolute; right: 2px; top: 12px; width: 2px; height: 2px; background: var(--trim); border-radius: 50%; }
-.door.dim { opacity: .15; }
-.door:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.lobby { height: 70px; background: var(--brick-dark); display: flex; justify-content: center; align-items: flex-end; gap: 6px;
-  border-left: 6px solid var(--brick-dark); border-right: 6px solid var(--brick-dark); }
-.lobby .entrance { width: 120px; height: 56px; background: linear-gradient(90deg, #2b1d10 0 49%, var(--trim) 49% 51%, #2b1d10 51%);
-  border: 4px solid var(--trim); border-bottom: 0; border-radius: 60px 60px 0 0; }
-.street { height: 14px; background: #2a2440; border-top: 3px solid #4a4260; }
+  /* top bar: nav scrolls sideways on phones */
+  header.topbar { position: sticky; top: 0; z-index: 10; background: rgba(255, 250, 240, .93); backdrop-filter: blur(8px); border-bottom: 4px solid #fff; box-shadow: 0 4px 0 var(--card-2); }
+  header.topbar .wrap { display: flex; align-items: center; gap: 14px; min-height: 62px; }
+  header.topbar .logo { display: flex; align-items: center; gap: 8px; font: 400 22px "Luckiest Guy", sans-serif; color: var(--red); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-decoration: none; white-space: nowrap; }
+  header.topbar .logo b { color: var(--yellow); font-weight: 400; }
+  header.topbar .logo svg { width: 24px; height: 30px; flex: none; }
+  header.topbar nav { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+  header.topbar nav::-webkit-scrollbar { display: none; }
+  header.topbar nav a { font-weight: 600; text-decoration: none; color: var(--ink-2); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  header.topbar nav a:hover { background: var(--card-2); color: var(--ink); }
+  @media (max-width: 820px) {
+    header.topbar .wrap { flex-wrap: wrap; gap: 0; padding-top: 8px; }
+    header.topbar nav { margin: 4px -16px 6px; padding: 0 12px; width: calc(100% + 32px); }
+  }
 
-/* Tooltip */
-#tip { position: fixed; pointer-events: none; z-index: 9; background: #0d0820f0; border: 1px solid var(--trim);
-  border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.5; display: none; max-width: 260px; }
-#tip b { font-family: ui-monospace, Consolas, monospace; color: var(--door-open); font-size: 13px; }
+  /* hero: the title screen the port reaches, redrawn in CSS (no game art in this repository) */
+  .hero { padding: 40px 0 20px; }
+  .hero .wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: center; }
+  .hero h1 { font-size: clamp(46px, 7vw, 84px); }
+  .hero h1 small { display: block; font-size: .42em; margin-top: 10px; }
+  .hero p.lead { font-size: 19px; color: var(--ink-2); margin: 16px 0 22px; max-width: 34em; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .tv { justify-self: center; width: min(100%, 420px); background: linear-gradient(#5a5560, #2c2930); border: 4px solid #fff; border-radius: 26px; padding: 18px;
+    box-shadow: 0 8px 0 rgba(36, 14, 20, .18), 0 24px 50px rgba(20, 70, 110, .25); }
+  .screen { position: relative; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; border: 3px solid #111;
+    background: linear-gradient(#4aa5e7 0 58%, #52bd63 58% 78%, #2f925a 78%); }
+  .screen .cl { position: absolute; height: 14%; border-radius: 99px; background: #eff7f7; }
+  .screen .cl.p { background: #debde7; }
+  .screen .logo { position: absolute; inset: 10% 0 auto; text-align: center; font: 400 clamp(30px, 8.5vw, 50px)/1 "Luckiest Guy", sans-serif; color: var(--red);
+    -webkit-text-stroke: 5px #101010; paint-order: stroke fill; text-shadow: 3px 4px 0 #101010; }
+  .screen .logo span { display: inline-block; rotate: -4deg; } .screen .logo span:nth-child(even) { rotate: 5deg; translate: 0 4px; }
+  .screen .menu { position: absolute; left: 0; right: 0; top: 44%; display: grid; justify-content: center; gap: 7px; font: 400 clamp(8px, 2.3vw, 12px)/1 var(--pixel);
+    color: var(--yellow); text-shadow: 2px 0 #000, -2px 0 #000, 0 2px #000, 0 -2px #000, 2px 2px #000; }
+  .screen .menu .on::before { content: "> "; margin-left: -2.2ch; }
+  .screen .hotel { position: absolute; left: 7%; bottom: 20%; width: 17%; height: 30%; background: #c2baa6; border: 3px solid #101010; border-radius: 40% 40% 4px 4px / 30% 30% 4px 4px; }
+  .screen .hotel::after { content: ""; position: absolute; left: 30%; right: 30%; bottom: 0; height: 50%; background: var(--wood); border: 2px solid #101010; border-bottom: 0; border-radius: 99px 99px 0 0; }
+  .tv .cap { text-align: center; font-size: 13px; color: #e8e2ea; margin: 10px 0 0; }
+  @media (max-width: 860px) { .hero .wrap { grid-template-columns: 1fr; } }
 
-/* About */
-.about { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 28px 0; }
-.about section { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 16px 18px; }
-.about h2 { font-family: "Press Start 2P", monospace; font-size: 12px; color: var(--trim); margin: 0 0 12px; }
-.about p, .about li { font-size: 14px; line-height: 1.6; color: var(--ink-dim); }
-.about ol { padding-left: 18px; margin: 0; }
-.about code { color: var(--door-open); font-size: 12px; }
-.port { background: var(--card); border: 1px solid var(--card-line); border-radius: 10px; padding: 16px 18px; margin: 0 0 28px; }
-.port h2 { font-family: "Press Start 2P", monospace; font-size: 12px; color: var(--trim); margin: 0 0 6px; }
-.port .lead { font-size: 14px; color: var(--ink-dim); margin: 0 0 14px; line-height: 1.6; }
-.port ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
-.port li { font-size: 14px; color: var(--ink-dim); display: flex; gap: 10px; align-items: baseline; line-height: 1.45; }
-.port li b { color: var(--ink); font-weight: 600; }
-.port .st { flex: none; width: 74px; font-family: "Press Start 2P", monospace; font-size: 8px; padding: 4px 0; text-align: center; border-radius: 4px; }
-.port .done { background: #6be38a26; color: var(--ok); }
-.port .wip { background: #ffd76a26; color: var(--door-open); }
-.port .todo { background: #ffffff12; color: var(--ink-dim); }
-@media (max-width: 760px) { .port ul { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .about { grid-template-columns: 1fr; } }
-footer { text-align: center; color: var(--ink-dim); font-size: 12px; padding: 18px 16px 30px; }
+  /* section heads */
+  section { padding: 34px 0; scroll-margin-top: 70px; }
+  .head { display: flex; align-items: end; justify-content: space-between; gap: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .head h2 { font-size: clamp(32px, 4vw, 44px); }
+  .head p { margin: 0; color: var(--ink-2); max-width: 38em; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  .card h3 { margin: 0 0 8px; font-size: 20px; }
+  .card p { margin: 0 0 10px; } .card p:last-child { margin-bottom: 0; }
+  .card ol { margin: 0 0 10px; padding-left: 22px; } .card ol li { margin: 4px 0; }
+
+  /* meters */
+  .overall { display: grid; grid-template-columns: auto 1fr; gap: 26px; align-items: center; padding: 22px 26px; margin-bottom: 18px; }
+  .overall .big { font: 400 clamp(60px, 9vw, 96px) "Luckiest Guy", sans-serif; color: var(--red); -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; line-height: 1; }
+  .overall h3 { margin: 0 0 4px; font-size: 22px; }
+  .overall p { margin: 0; color: var(--ink-2); }
+  .overall .bar { height: 30px; }
+  @media (max-width: 620px) { .overall { grid-template-columns: 1fr; text-align: center; } }
+  .meters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .meters { grid-template-columns: 1fr; } }
+  .meter { padding: 16px 18px 18px; }
+  .meter .top { display: flex; align-items: baseline; gap: 10px; }
+  .meter .pct { margin-left: auto; font: 400 20px var(--pixel); color: #fff; white-space: nowrap; }
+  .meter .pct.ok { color: #7dee8c; font-size: 15px; }
+  .meter p { margin: 0; font-size: 14.5px; color: #dcd9f2; }
+  .meter p b { color: #fff; }
+  .bar { position: relative; height: 20px; border-radius: 999px; background: var(--track); box-shadow: inset 0 3px 0 rgba(36, 14, 20, .12); margin: 12px 0 10px; overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 999px; background: linear-gradient(var(--red-l), var(--red) 55%, var(--red-d)); box-shadow: inset 0 -3px 0 rgba(122, 10, 41, .35); transition: width 1.2s cubic-bezier(.2, .8, .2, 1); }
+  .bar i.y { background: linear-gradient(var(--yellow-l), var(--yellow) 55%, #b5b00c); box-shadow: inset 0 -3px 0 rgba(90, 80, 0, .3); }
+  .hud .bar { background: var(--hud-d); box-shadow: inset 0 0 0 2px #fff; }
+
+  /* the hotel: one door per function, five floors in address order */
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--ink-2); align-items: center; }
+  .legend .dk { display: inline-flex; gap: 6px; align-items: center; background: #fff; border: 2px solid var(--card-2); border-radius: 999px; padding: 2px 10px 2px 8px; font-weight: 600; color: var(--ink); }
+  .legend .dk i { width: 11px; height: 16px; border-radius: 6px 6px 0 0; border: 2px solid var(--ink); border-bottom: 0; display: inline-block; }
+  .hotelb { position: relative; margin: 46px 6px 0; }
+  .hotelb .sign { position: absolute; left: 50%; top: -34px; transform: translateX(-50%) rotate(-2deg); z-index: 2; font: 400 22px/1 "Luckiest Guy", sans-serif;
+    padding: 8px 16px 4px; background: var(--wood-l); border: 4px solid var(--ink); color: var(--yellow); border-radius: 8px; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; box-shadow: inset 0 -5px 0 var(--wood); }
+  .roof { height: 54px; background-color: var(--red); border: 4px solid var(--ink); border-bottom-width: 6px; border-radius: 50% 50% 10px 10px / 100% 100% 10px 10px; margin: 0 -10px;
+    background-image: radial-gradient(circle at 12% 62%, #fff 0 11px, transparent 12px), radial-gradient(circle at 34% 38%, #fff 0 14px, transparent 15px),
+      radial-gradient(circle at 64% 34%, #fff 0 13px, transparent 14px), radial-gradient(circle at 87% 62%, #fff 0 10px, transparent 11px); }
+  .hbody { display: grid; grid-template-columns: 30px 1fr 30px; background: repeating-linear-gradient(0deg, #c2513a 0 12px, #8c3424 12px 14px); border-left: 4px solid var(--ink); border-right: 4px solid var(--ink); }
+  .shaft { background: #2a2440; border-left: 3px solid var(--ink); border-right: 3px solid var(--ink); position: relative; overflow: hidden; }
+  .car { position: absolute; left: 2px; right: 2px; height: 46px; background: var(--yellow); border-radius: 3px; box-shadow: inset 0 0 0 3px var(--ink), inset 0 -9px 0 #b5b00c; transition: top 2.5s ease-in-out; }
+  .floor { border-bottom: 7px solid #c2baa6; box-shadow: 0 3px 0 var(--ink); padding: 8px 8px 0; position: relative; margin-bottom: 3px; }
+  .floor .label { position: absolute; left: 8px; top: 7px; font: 400 9px/1 var(--pixel); color: var(--yellow); text-shadow: 2px 0 #000, -2px 0 #000, 0 2px #000, 0 -2px #000; }
+  .doors { display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-end; padding: 22px 0 0; }
+  .door { width: 14px; height: 24px; border-radius: 7px 7px 0 0; cursor: pointer; position: relative; border: 2px solid var(--ink); border-bottom: 0; padding: 0; }
+  .door.asm { background: #ffe95c; box-shadow: 0 0 8px #fff6b0; }
+  .door.c { background: linear-gradient(90deg, var(--wood) 0 45%, var(--wood-l) 45% 55%, var(--wood) 55%); }
+  .door.asmsrc { background: linear-gradient(90deg, #c5bf5b 0 45%, #e5df85 45% 55%, #c5bf5b 55%); }
+  .door.c::after, .door.asmsrc::after { content: ""; position: absolute; right: 2px; top: 12px; width: 2px; height: 2px; background: var(--yellow); border-radius: 50%; }
+  .door.dim { opacity: .15; }
+  .door:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .lobby { height: 60px; background: #c2baa6; display: flex; justify-content: center; align-items: flex-end; border-left: 4px solid var(--ink); border-right: 4px solid var(--ink); }
+  .lobby i { width: 100px; height: 48px; background: linear-gradient(90deg, var(--wood) 0 48%, var(--ink) 48% 52%, var(--wood) 52%); border: 4px solid var(--ink); border-bottom: 0; border-radius: 60px 60px 0 0; }
+  .street { height: 16px; background: #ada584; border-top: 4px solid var(--ink); margin: 0 -10px; border-radius: 0 0 10px 10px; }
+
+  /* tables, filters, chips */
+  .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 2px dashed var(--card-2); vertical-align: middle; }
+  th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); border-bottom: 3px solid var(--card-2); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td code { background: #fff; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0 4px; }
+  .filters input { flex: 1 1 220px; min-width: 0; font: 500 16px Fredoka, sans-serif; color: var(--ink); padding: 10px 16px; border-radius: 999px; border: 3px solid var(--card-2); background: #fff; }
+  .filters input:focus { outline: none; border-color: var(--red); }
+  .seg-ctl { display: inline-flex; flex-wrap: wrap; background: #fff; border-radius: 18px; padding: 4px; border: 3px solid var(--card-2); gap: 2px; }
+  .seg-ctl button { font: 600 14px Fredoka, sans-serif; color: var(--ink-2); border: 0; background: none; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+  .seg-ctl button.on { background: var(--red); color: #fff; }
+  .count { color: var(--ink-2); font-size: 14px; }
+  .more { margin: 14px auto 0; display: flex; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; border: 2px solid; }
+  .chip.done { color: #fff; background: var(--grass-d); border-color: var(--grass-d); }
+  .chip.orig { color: #5a4a00; background: #f4efa8; border-color: #c5bf5b; }
+  .chip.partial { color: #6b5500; background: var(--yellow-l); border-color: #c9c20c; }
+  .chip.todo { color: var(--ink-2); background: #fff; border-color: var(--card-2); }
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 2px dashed var(--card-2); font-size: 15.5px; }
+  ul.list li:last-child { border-bottom: 0; }
+  ul.list li .name { flex: 1; min-width: 0; }
+  ul.list li .name small { display: block; color: var(--ink-2); font-size: 13.5px; }
+  .hud.speech { padding: 18px 22px; font-size: 16.5px; }
+  .hud.speech p { margin: 0 0 12px; } .hud.speech p:last-child { margin: 0; }
+  .hud.speech b { color: var(--yellow); }
+
+  .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--hud); border: 2px solid #fff; color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 14px;
+    transform: translate(-50%, calc(-100% - 12px)); max-width: min(320px, 92vw); opacity: 0; transition: opacity .12s; }
+  .tip b { color: var(--yellow); font-family: ui-monospace, Consolas, monospace; }
+
+  footer { padding: 30px 0 40px; color: #10401f; font-size: 14px; }
+  footer .wrap { display: flex; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
-<div class="stars"></div><div class="moon"></div>
-<main>
-  <div class="sign">
-    <h1>HOTEL MARIO</h1>
-    <div class="sub">MATCHING DECOMPILATION · PHILIPS CD-i · 1994</div>
+<header class="topbar">
+  <div class="wrap">
+    <a class="logo" href="#top"><svg viewBox="0 0 32 40" aria-hidden="true"><path d="M3 39V16a13 13 0 0 1 26 0v23z" fill="#944e38" stroke="#240e14" stroke-width="3"/><path d="M16 5v34" stroke="#240e14" stroke-width="2"/><circle cx="23" cy="24" r="2.2" fill="#ebeb0f"/></svg>Hotel <b>Mario</b></a>
+    <nav aria-label="Sections"><a href="#progress">Progress</a><a href="#hotel">The hotel</a><a href="#rooms">Rooms</a><a href="#port">Port</a><a href="#disc">Your disc</a><a href="#story">What is this?</a><a href="https://github.com/antonretro/HotelMario-Decomp">GitHub</a></nav>
   </div>
+</header>
 
-  <div class="stats">
-    <div class="stat"><div class="k">Main program done</div><div class="v" id="pct">0%</div><div class="bar"><i id="pctbar" style="width:0"></i></div><div class="s">cdi_hotel only - not yet the 172 code modules streamed from the disc</div></div>
-    <div class="stat"><div class="k">Doors closed</div><div class="v" id="funcs">0 / 0</div><div class="s" id="funcs_s">game functions</div></div>
-    <div class="stat"><div class="k">Disassembled</div><div class="v" id="dis">0%</div><div class="s">real instructions, not raw words</div></div>
-    <div class="stat ok"><div class="k">Build</div><div class="v" id="match">✔ MATCHING</div><div class="s" id="sha"></div></div>
-  </div>
-
-  <div class="controls">
-    <input id="q" type="search" placeholder="Find a room (function name)…" aria-label="Search functions">
-    <div class="legend">
-      <span><i style="background:var(--door-open)"></i> open door = still assembly</span>
-      <span><i style="background:var(--door-shut-panel)"></i> wooden door = decompiled to C</span>
-      <span><i style="background:var(--trim)"></i> brass door = written in assembly by the original team</span>
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1 class="toon">Hotel Mario<small class="toon yellow small">Decompiled by Anton Retro</small></h1>
+        <p class="lead"><i>Hotel Mario</i> came out on the Philips CD-i in 1994. This project rebuilds its source code so it compiles back into the exact same program, byte for byte. Alongside it, a port that needs only your disc (no CD-i BIOS) is being built for PC, with Wii and 3DS in mind.</p>
+        <div class="row">
+          <a class="btn" href="#progress">Progress</a>
+          <a class="btn" href="#port">Port status</a>
+          <a class="btn dark" href="https://github.com/antonretro/HotelMario-Decomp">Source on GitHub</a>
+        </div>
+      </div>
+      <div class="tv">
+        <div class="screen" role="img" aria-label="The Hotel Mario title screen, redrawn: the red logo over a blue sky, and the yellow menu 1 Player, 2 Player, Hi Scores, Demo">
+          <div class="cl" style="left:58%;top:3%;width:30%"></div><div class="cl p" style="left:6%;top:6%;width:22%"></div>
+          <div class="logo" aria-hidden="true"><span>H</span><span>O</span><span>T</span><span>E</span><span>L</span> <span>M</span><span>A</span><span>R</span><span>I</span><span>O</span></div>
+          <div class="menu" aria-hidden="true"><span>1 PLAYER</span><span>2 PLAYER</span><span>HI SCORES</span><span class="on">DEMO</span></div>
+          <div class="hotel"></div>
+        </div>
+        <p class="cap">The title screen the port now reaches (redrawn here; no game art is stored in this project)</p>
+      </div>
     </div>
-  </div>
-
-  <div class="hotel" id="hotel" style="margin-top:40px">
-    <div class="roof"></div>
-    <div class="body">
-      <div class="shaft"><div class="car" id="carL"></div></div>
-      <div class="floors" id="floors"></div>
-      <div class="shaft"><div class="car" id="carR"></div></div>
-    </div>
-    <div class="lobby"><div class="entrance"></div></div>
-    <div class="street"></div>
-  </div>
-
-  <section class="port">
-    <h2>BIOS-FREE PORT (SIDE PROJECT)</h2>
-    <p class="lead">The main goal of this project is the <b>matching decompilation</b> above. Alongside it, a port that
-      needs only your disc (no CD-i BIOS) is being built with Wii and 3DS in mind.
-      <b>Not playable yet</b> - it now boots by itself through the Philips logo, the Fantasy Factory logo and
-      the whole intro cartoon to the title screen, with the Philips jingle, intro speech and title music.
-      Gameplay and in-game sound aren't working yet.
-      If you want to play Hotel Mario natively today, see
-      <a href="https://github.com/mstan/cdirecomp" style="color:var(--door-open)">cdirecomp</a>, a CD-i static
-      recompiler that runs it using a CD-i system ROM.
-      The game's main program is translated from 68000 machine code into C and runs on PC,
-      with the code it streams from the disc running on a built-in 68000 interpreter. Bring your own disc:
-      everything is read from your own copy.</p>
-    <ul>
-      <li><span class="st done">DONE</span><span><b>Boots on PC</b>: startup, memory, OS-9 system calls</span></li>
-      <li><span class="st done">DONE</span><span><b>Disc streaming</b>: real-time playback at 75 sectors/s with the game's signals</span></li>
-      <li><span class="st done">DONE</span><span><b>Streamed code</b>: 172 code modules on the disc run on the interpreter</span></li>
-      <li><span class="st done">DONE</span><span><b>Window &amp; controls</b>: keyboard and gamepad as the CD-i thumbpad</span></li>
-      <li><span class="st done">DONE</span><span><b>Video chip</b>: palettes, DYUV stills, run-length animation, fades, two layered planes</span></li>
-      <li><span class="st done">DONE</span><span><b>Philips logo</b>: the original logo program runs and hands back to the game</span></li>
-      <li><span class="st done">DONE</span><span><b>Intro</b>: Fantasy Factory logo and the intro cartoon, characters layered over the backgrounds</span></li>
-      <li><span class="st done">DONE</span><span><b>Title screen</b>: the HOTEL MARIO logo and menu; the attract demo starts after a while</span></li>
-      <li><span class="st done">DONE</span><span><b>Start-up sound</b>: Philips jingle, intro speech, title music</span></li>
-      <li><span class="st todo">NEXT</span><span><b>In-game sound</b>: music and effects through the CD-i sound-map calls</span></li>
-      <li><span class="st todo">NEXT</span><span><b>Gameplay</b>: menus with input, first hotel, saves</span></li>
-      <li><span class="st todo">LATER</span><span><b>Wii and 3DS builds</b> from the same code</span></li>
-      <li><span class="st todo">LATER</span><span><b>Full decompilation</b> replacing the translated code with readable C</span></li>
-    </ul>
   </section>
 
-  <div class="about">
-    <section>
-      <h2>WHAT IS THIS?</h2>
-      <p>A project to rebuild the source code of <em>Hotel Mario</em> (Fantasy Factory / Philips, 1994) so that it compiles back into
-      the exact same program, byte for byte. Each door is one function from the game's original symbol table. The game is
-      about closing doors, so a door closes when its function is rewritten in C.</p>
-      <p>When the code is decompiled, it can be ported to PC, 3DS and Wii.</p>
-    </section>
-    <section>
-      <h2>HOW IT WORKS</h2>
-      <ol>
-        <li>Read the CD-i disc (CD-RTOS filesystem) from <em>your own</em> disc image</li>
-        <li>Split the OS-9 program <code>cdi_hotel</code> into functions using the original <code>.stb</code> symbols</li>
-        <li>Rebuild with <code>vasm</code> + the OS-9 module CRC and check the SHA1</li>
-        <li>Swap functions from assembly to C one at a time, keeping the build matching</li>
-      </ol>
-      <p>No game data is stored in the repository.</p>
-    </section>
-  </div>
+  <section id="progress">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">Road to 100%</h2><p>Measured from the project files, not guessed: <code>tools/progress.py</code> reads the <code>asm/</code> and <code>src/</code> trees. Updated <span id="gen">…</span>.</p></div>
+      <div class="overall card">
+        <div class="big" id="pct">…</div>
+        <div><h3>Main program in C</h3><p>Bytes of the game's main program, <code>cdi_hotel</code>, rewritten as C. This counts that program only, not yet the 172 code modules the game streams from the disc.</p><div class="bar" role="img" id="pctbar"><i></i></div></div>
+      </div>
+      <div class="meters">
+        <div class="meter hud">
+          <div class="top"><span class="lbl">Doors closed</span><span class="pct" id="funcs">…</span></div>
+          <div class="bar" role="img" id="funcsbar"><i></i></div>
+          <p><b id="funcs_c">…</b> functions decompiled to C, plus <b id="funcs_a">…</b> that the original team wrote in assembly themselves (they stay assembly).</p>
+        </div>
+        <div class="meter hud">
+          <div class="top"><span class="lbl">Disassembled</span><span class="pct" id="dis">…</span></div>
+          <div class="bar" role="img" id="disbar"><i class="y"></i></div>
+          <p>Bytes that are real 68000 instructions in <code>asm/</code>, not raw data words.</p>
+        </div>
+        <div class="meter hud">
+          <div class="top"><span class="lbl">Build</span><span class="pct ok" id="match">…</span></div>
+          <div class="bar" role="img" id="matchbar"><i class="y"></i></div>
+          <p id="sha">…</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="hotel">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">The hotel</h2><p>The game is about closing doors, so here every door is one function from the game's original symbol table, in address order. A door closes when its function is rewritten in C. Hover or tap a door for details.</p></div>
+      <div class="card pad">
+        <div class="legend"><span class="dk"><i style="background:#ffe95c"></i>Open: still assembly</span><span class="dk"><i style="background:var(--wood)"></i>Wooden: decompiled to C</span><span class="dk"><i style="background:#c5bf5b"></i>Brass: original hand-written assembly</span></div>
+        <div class="hotelb">
+          <div class="sign">HOTEL</div>
+          <div class="roof"></div>
+          <div class="hbody">
+            <div class="shaft"><div class="car" id="carL"></div></div>
+            <div id="floors"></div>
+            <div class="shaft"><div class="car" id="carR"></div></div>
+          </div>
+          <div class="lobby"><i></i></div>
+          <div class="street"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="rooms">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">Every room</h2><p>All functions in <code>cdi_hotel</code>, with their names from the original <code>.stb</code> symbol file and their offset in the program.</p></div>
+      <div class="card pad">
+        <div class="filters">
+          <input id="q" type="search" placeholder="Find a room: bonus, cd_, mario…" aria-label="Search functions">
+          <div class="seg-ctl" role="group" aria-label="Show">
+            <button data-f="all" class="on">All</button><button data-f="c">In C</button><button data-f="asmsrc">Original asm</button><button data-f="asm">Still open</button>
+          </div>
+          <span id="count" class="count"></span>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Function</th><th class="num">Offset</th><th class="num">Bytes</th><th>Status</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <button class="btn more" id="more" hidden>Show more</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="port">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">BIOS-free port</h2><p>A side project next to the decomp. The game's main program is translated from 68000 machine code into C and runs on PC; the code it streams from the disc runs on a built-in 68000 interpreter. No CD-i BIOS needed.</p></div>
+      <div class="two">
+        <div class="hud speech">
+          <p><b>Not playable yet.</b> It now boots by itself through the Philips logo, the Fantasy Factory logo and the whole intro cartoon to the title screen, with the Philips jingle, the intro speech and the title music. The attract demo starts after a while.</p>
+          <p>Gameplay, menus with input, and in-game music and sound effects are next.</p>
+          <p>Want to play Hotel Mario natively today? See <a href="https://github.com/mstan/cdirecomp">cdirecomp</a> by mstan, a separate CD-i static recompiler that runs it using a CD-i system ROM.</p>
+        </div>
+        <div class="card pad">
+          <h3>Status</h3>
+          <ul class="list">
+            <li><span class="name">Boots on PC<small>Startup, memory, OS-9 system calls</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Disc streaming<small>Real-time playback at 75 sectors/s with the game's signals</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Streamed code<small>The 172 code modules on the disc run on the interpreter</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Window and controls<small>Keyboard and gamepad as the CD-i thumbpad</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Video chip<small>Palettes, DYUV stills, run-length animation, fades, two layered planes</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Philips logo<small>The original logo program runs and hands back to the game</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Intro<small>Fantasy Factory logo and the intro cartoon, characters over the backgrounds</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Title screen<small>The HOTEL MARIO logo and menu; the attract demo starts after a while</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">Start-up sound<small>Philips jingle, intro speech, title music</small></span><span class="chip done">✓ Done</span></li>
+            <li><span class="name">In-game sound<small>Music and effects through the CD-i sound-map calls</small></span><span class="chip todo">○ Next</span></li>
+            <li><span class="name">Gameplay<small>Menus with input, the first hotel, saves</small></span><span class="chip todo">○ Next</span></li>
+            <li><span class="name">Wii and 3DS builds<small>From the same code</small></span><span class="chip todo">○ Later</span></li>
+            <li><span class="name">Full decompilation<small>Replacing the translated code with readable C</small></span><span class="chip todo">○ Later</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="disc">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">Bring your own disc</h2><p>The project contains no game data: no disc image, no extracted files, no game code. Everything is read from your own copy.</p></div>
+      <div class="card pad">
+        <ul class="list">
+          <li><span class="name"><b>Hotel Mario (Europe)</b><small>Matching build and PC port</small></span><span class="chip done">✓ Supported</span></li>
+          <li><span class="name"><b>Hotel Mario (USA)</b><small>The port needs the USA program translated as well</small></span><span class="chip partial">◐ Planned</span></li>
+          <li><span class="name"><b>Hotel Mario (USA) (Beta) (1993-11-23)</b><small>Recognised, used for comparison</small></span><span class="chip todo">○ Compare only</span></li>
+        </ul>
+        <p style="margin-top:12px;font-size:15px;color:var(--ink-2)">Build steps and disc checksums are in the <a href="https://github.com/antonretro/HotelMario-Decomp#readme">README</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="story">
+    <div class="wrap">
+      <div class="head"><h2 class="toon">What is this?</h2></div>
+      <div class="two">
+        <div class="card pad">
+          <h3>A matching decompilation</h3>
+          <p>A project to rebuild the source code of <i>Hotel Mario</i> (Fantasy Factory / Philips, 1994) so that it compiles back into the exact same program, byte for byte. Each function is rewritten as K&amp;R C for Microware's OS-9/68000 C compiler, the one the game was built with.</p>
+          <p>Once the code is decompiled, it can be ported to PC, 3DS and Wii.</p>
+        </div>
+        <div class="card pad">
+          <h3>How it works</h3>
+          <ol>
+            <li>Read the CD-i disc (CD-RTOS filesystem) from <i>your own</i> disc image</li>
+            <li>Split the OS-9 program <code>cdi_hotel</code> into functions using the original <code>.stb</code> symbols</li>
+            <li>Rebuild with <code>vasm</code> plus the OS-9 module CRC and check the SHA1</li>
+            <li>Swap functions from assembly to C one at a time, keeping the build matching</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
-<footer id="foot">Updated —</footer>
-<div id="tip" role="tooltip"></div>
+
+<footer>
+  <div class="wrap">
+    <span>Fan project, not affiliated with or endorsed by Nintendo, Philips or Fantasy Factory. Hotel Mario © Nintendo / Philips. No game data is stored in this project: you need your own copy of the game. <span id="foot"></span></span>
+    <span>Hotel Mario Decomp, by Anton Retro</span>
+  </div>
+</footer>
+<div class="tip" id="tip" role="tooltip"></div>
 
 <script src="progress.js"></script>
 <script>
 (function () {
   const P = window.PROGRESS;
-  if (!P) { document.getElementById("foot").textContent = "progress.js missing - run python tools/progress.py"; return; }
-  const fmt = n => n.toLocaleString("en");
-  const pct = P.bytes_total ? 100 * P.bytes_c / P.bytes_total : 0;
-  document.getElementById("pct").textContent = pct.toFixed(pct < 10 ? 2 : 1) + "%";
-  document.getElementById("pctbar").style.width = pct + "%";
-  const closed = P.funcs_c + (P.funcs_asmsrc || 0);
-  document.getElementById("funcs").textContent = `${closed} / ${P.funcs_total}`;
-  document.getElementById("funcs_s").textContent = `${P.funcs_c} in C · ${P.funcs_asmsrc || 0} original assembly`;
-  document.getElementById("dis").textContent = (100 * P.bytes_disassembled / P.bytes_total).toFixed(1) + "%";
-  document.getElementById("sha").textContent = `${P.target.name} (${P.target.region}) · sha1 ${P.target.sha1.slice(0, 12)}…`;
-  if (!P.matching) { const m = document.getElementById("match"); m.textContent = "✘ NOT MATCHING"; m.style.color = "var(--neon)"; }
-  document.getElementById("foot").textContent = `Updated ${P.updated} · ${fmt(P.bytes_c)} of ${fmt(P.bytes_total)} game code bytes done · Not affiliated with Nintendo or Philips.`;
+  const $ = id => document.getElementById(id);
+  if (!P) { $("foot").textContent = "progress.js missing - run python -I tools/progress.py"; return; }
+  const n = x => x.toLocaleString("en");
+  const pct = x => (x * 100).toFixed(x < .1 ? 2 : 1) + "%";
+  const setBar = (id, x) => { const b = $(id); b.setAttribute("aria-label", pct(x)); requestAnimationFrame(() => b.firstElementChild.style.width = (x * 100) + "%"); };
 
-  // Floors: split functions (in address order) into hotel floors, top floor = last addresses
+  // ---- Road to 100% ----
+  const code = P.bytes_total ? P.bytes_c / P.bytes_total : 0;
+  const closed = P.funcs_c + (P.funcs_asmsrc || 0);
+  $("gen").textContent = new Date(P.updated + "T12:00").toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  $("pct").textContent = pct(code); setBar("pctbar", code);
+  $("funcs").textContent = `${closed}/${P.funcs_total}`; setBar("funcsbar", closed / P.funcs_total);
+  $("funcs_c").textContent = P.funcs_c; $("funcs_a").textContent = P.funcs_asmsrc || 0;
+  $("dis").textContent = pct(P.bytes_disassembled / P.bytes_total); setBar("disbar", P.bytes_disassembled / P.bytes_total);
+  $("match").textContent = P.matching ? "✓ MATCHING" : "✗ NOT MATCHING";
+  if (!P.matching) $("match").style.color = "var(--red-l)";
+  setBar("matchbar", P.matching ? 1 : 0);
+  $("sha").innerHTML = `<b>${P.target.name}</b> (${P.target.region}) reassembles to the original byte for byte: SHA1 <code>${P.target.sha1.slice(0, 12)}…</code>`;
+  $("foot").textContent = `${n(P.bytes_c)} of ${n(P.bytes_total)} game code bytes in C.`;
+
+  // ---- the hotel ----
   const funcs = P.functions.filter(f => f.size > 0);
+  const label = s => s === "c" ? "decompiled to C" : s === "asmsrc" ? "original hand-written assembly" : "still assembly";
   const FLOORS = 5, per = Math.ceil(funcs.length / FLOORS);
-  const floorsEl = document.getElementById("floors");
-  const doors = [];
+  const floorsEl = $("floors"), doors = [];
   for (let fl = FLOORS - 1; fl >= 0; fl--) {
     const slice = funcs.slice(fl * per, (fl + 1) * per);
     if (!slice.length) continue;
-    const done = slice.filter(f => f.status === "c").length;
-    const floor = document.createElement("div");
-    floor.className = "floor";
-    floor.innerHTML = `<span class="label">FLOOR ${fl + 1} · ${done}/${slice.length}</span>`;
-    const row = document.createElement("div");
-    row.className = "doors";
+    const floor = document.createElement("div"); floor.className = "floor";
+    floor.innerHTML = `<span class="label">FLOOR ${fl + 1} · ${slice.filter(f => f.status !== "asm").length}/${slice.length}</span>`;
+    const row = document.createElement("div"); row.className = "doors";
     for (const f of slice) {
       const d = document.createElement("button");
-      d.className = "door " + f.status;
-      d.setAttribute("aria-label", `${f.name}, ${f.status === "c" ? "decompiled" : "assembly"}`);
-      d._f = f;
-      row.appendChild(d);
-      doors.push(d);
+      d.className = "door " + f.status; d.setAttribute("aria-label", `${f.name}, ${label(f.status)}`); d._f = f;
+      row.appendChild(d); doors.push(d);
     }
-    floor.appendChild(row);
-    floorsEl.appendChild(floor);
+    floor.appendChild(row); floorsEl.appendChild(floor);
   }
-
-  // Tooltip
-  const tip = document.getElementById("tip");
-  const show = (d, x, y) => {
-    const f = d._f;
-    tip.innerHTML = `<b>${f.name}</b><br>offset 0x${f.addr.toString(16)} · ${fmt(f.size)} bytes<br>` +
-      (f.status === "c" ? "✔ decompiled to C" : f.status === "asmsrc" ? "✔ original hand-written assembly"
-        : "still assembly" + (f.raw ? ` · ${f.raw} raw bytes` : ""));
-    tip.style.display = "block";
-    const r = tip.getBoundingClientRect();
-    tip.style.left = Math.min(x + 14, innerWidth - r.width - 8) + "px";
-    tip.style.top = Math.min(y + 14, innerHeight - r.height - 8) + "px";
+  const tip = $("tip");
+  const showTip = d => {
+    const f = d._f, r = d.getBoundingClientRect();
+    tip.innerHTML = `<b>${f.name}</b><br>offset 0x${f.addr.toString(16)} · ${n(f.size)} bytes<br>${f.status === "asm" ? "○" : "✓"} ${label(f.status)}${f.status === "asm" && f.raw ? ` · ${f.raw} raw bytes` : ""}`;
+    tip.style.left = Math.min(innerWidth - 120, Math.max(120, r.left + r.width / 2)) + "px"; tip.style.top = r.top + "px"; tip.style.opacity = 1;
   };
-  floorsEl.addEventListener("mousemove", e => { if (e.target._f) show(e.target, e.clientX, e.clientY); else tip.style.display = "none"; });
-  floorsEl.addEventListener("mouseleave", () => tip.style.display = "none");
-  floorsEl.addEventListener("focusin", e => { if (e.target._f) { const r = e.target.getBoundingClientRect(); show(e.target, r.right, r.bottom); } });
-  floorsEl.addEventListener("focusout", () => tip.style.display = "none");
+  const hideTip = () => tip.style.opacity = 0;
+  floorsEl.addEventListener("mouseover", e => e.target._f ? showTip(e.target) : hideTip());
+  floorsEl.addEventListener("mouseleave", hideTip);
+  floorsEl.addEventListener("focusin", e => { if (e.target._f) showTip(e.target); });
+  floorsEl.addEventListener("focusout", hideTip);
+  addEventListener("scroll", hideTip, { passive: true });
 
-  // Search
-  document.getElementById("q").addEventListener("input", e => {
-    const q = e.target.value.trim().toLowerCase();
-    for (const d of doors) d.classList.toggle("dim", !!q && !d._f.name.toLowerCase().includes(q));
-  });
-
-  // Elevators drift between floors
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const cars = [document.getElementById("carL"), document.getElementById("carR")];
-  const move = () => {
-    const h = floorsEl.offsetHeight;
-    cars.forEach(c => c.style.top = Math.floor(Math.random() * Math.max(1, h - 54)) + "px");
+  const cars = [$("carL"), $("carR")];
+  const move = () => { const h = floorsEl.offsetHeight; cars.forEach(c => c.style.top = Math.floor(Math.random() * Math.max(1, h - 46)) + "px"); };
+  move(); if (!reduce) setInterval(move, 3200);
+
+  // ---- every room ----
+  const chip = s => s === "c" ? `<span class="chip done">✓ In C</span>` : s === "asmsrc" ? `<span class="chip orig">✓ Original asm</span>` : `<span class="chip todo">○ Assembly</span>`;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  let filter = "all", shown = 30;
+  const draw = () => {
+    const q = $("q").value.trim().toLowerCase();
+    const list = P.functions.filter(f => (filter === "all" || f.status === filter) && (!q || f.name.toLowerCase().includes(q)));
+    $("count").textContent = `${list.length} functions`;
+    $("rows").innerHTML = list.slice(0, shown).map(f => `<tr><td><code>${esc(f.name)}</code></td><td class="num"><code>0x${f.addr.toString(16)}</code></td><td class="num">${n(f.size)}</td><td>${chip(f.status)}</td></tr>`).join("");
+    $("more").hidden = list.length <= shown;
+    for (const d of doors) d.classList.toggle("dim", (!!q && !d._f.name.toLowerCase().includes(q)) || (filter !== "all" && d._f.status !== filter));
   };
-  move();
-  if (!reduce) setInterval(move, 3200);
+  $("q").oninput = () => { shown = 30; draw(); };
+  document.querySelectorAll(".seg-ctl button").forEach(b => b.onclick = () => {
+    filter = b.dataset.f; shown = 30;
+    document.querySelectorAll(".seg-ctl button").forEach(x => x.classList.toggle("on", x === b)); draw();
+  });
+  $("more").onclick = () => { shown += 120; draw(); };
+  draw();
 })();
 </script>
 </body>
