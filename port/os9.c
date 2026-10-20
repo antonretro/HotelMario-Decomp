@@ -37,9 +37,30 @@ static uint32_t sysglob;
 #define D_TICKS 0x54
 #define TICKS_PER_SEC 100
 
+/* The game's clock: real time, minus the time the main loop was stalled. On Windows, dragging the window
+   freezes the main loop until the mouse is released (and the settings menu pauses it on purpose). Measured
+   in real time, the disc stream then had seconds of "overdue" sectors to push through at once, which
+   garbled cutscenes; with this clock the game simply carries on where it stopped. */
+#define STALL (CLOCKS_PER_SEC * 15 / 100)
+static volatile clock_t last_beat, stalled;
+
+void game_heartbeat(void)          /* called by the main loop whenever it runs (rt_poll) */
+{
+    clock_t now = clock();
+    if (last_beat && now - last_beat > STALL) stalled += now - last_beat - CLOCKS_PER_SEC / 50;
+    last_beat = now;
+}
+
+clock_t game_clock(void)
+{
+    clock_t now = clock(), beat = last_beat;
+    if (beat && now - beat > STALL) now = beat;   /* stalled right now: time stands still */
+    return now - stalled;
+}
+
 void os9_tick(void)
 {
-    uint32_t t = (uint32_t)((unsigned long long)clock() * TICKS_PER_SEC / CLOCKS_PER_SEC);
+    uint32_t t = (uint32_t)((unsigned long long)game_clock() * TICKS_PER_SEC / CLOCKS_PER_SEC);
     uint8_t be[4] = { (uint8_t)(t >> 24), (uint8_t)(t >> 16), (uint8_t)(t >> 8), (uint8_t)t };
     if (sysglob) memcpy(RAM + sysglob + D_TICKS, be, 4);    /* one store: the ticker thread runs alongside */
 }
@@ -413,7 +434,36 @@ static void wait_next_field(void)   /* 50 fields per second like a PAL CD-i (set
 {
     static clock_t next;
     clock_t now = clock(), field = CLOCKS_PER_SEC / field_rate();
+    int k = window_refreshes_per_field();
     frame_syncs++;                     /* the game finished a frame: now is the time to show it */
+    if (getenv("HM_PACELOG")) {        /* debug: fields and presented refreshes per second */
+        static clock_t t0;
+        static unsigned f0;
+        static unsigned long r0;
+        if (!t0) { t0 = now; f0 = frame_syncs; r0 = window_refresh_count(); }
+        if (now - t0 >= 2 * CLOCKS_PER_SEC) {
+            fprintf(stderr, "  [pace] at %lu ms: %.1f fields/s, %.1f refreshes/s, k=%d\n", (unsigned long)(now * 1000 / CLOCKS_PER_SEC), (frame_syncs - f0) * 1.0 * CLOCKS_PER_SEC / (now - t0),
+                    (window_refresh_count() - r0) * 1.0 * CLOCKS_PER_SEC / (now - t0), k);
+            t0 = now; f0 = frame_syncs; r0 = window_refresh_count();
+        }
+    }
+    if (k) {
+        /* Locked pacing (settings): the next field starts after exactly k monitor refreshes, so every game
+           frame stays on screen equally long (at 144 Hz, 3 refreshes = 48 fields a second instead of
+           50 with an uneven 3-3-2 rhythm that looks choppy). */
+        /* a fixed rhythm: each field ends k refreshes after the previous one ended, not k after the game
+           finished drawing (or the drawing time would add up); far behind, start the rhythm again */
+        static unsigned long target;
+        unsigned long cur = window_refresh_count();
+        if (!target || cur > target + 4 * (unsigned long)k) target = cur;
+        target += (unsigned long)k;
+        while (window_refresh_count() < target) {
+            rt_poll();
+            window_sleep(0);
+        }
+        next = 0;
+        return;
+    }
     if (!next || now - next > 5 * field) next = now;   /* resync after long gaps */
     next += field;
     while (clock() < next) {

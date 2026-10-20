@@ -20,6 +20,7 @@ Settings settings = {
     10,     /* volume 0-10 */
     0,      /* skip the Philips logo */
     0,      /* game speed: original 50 Hz */
+    1,      /* smooth pacing: even frame timing (144 Hz: 48 fields/s; 60 Hz: 60) */
 };
 
 /* Game fields per second. The original PAL game updates 50 times a second; the faster settings only speed up
@@ -40,6 +41,7 @@ static struct { const char *key; int *val, lo, hi; } fields[] = {
     { "volume", &settings.volume, 0, 10 },
     { "skip_philips_logo", &settings.skip_philips, 0, 1 },
     { "game_speed", &settings.game_speed, 0, 2 },
+    { "smooth_pacing", &settings.smooth_pacing, 0, 1 },
 };
 #define NFIELDS (int)(sizeof fields / sizeof fields[0])
 
@@ -118,7 +120,7 @@ static void text(uint32_t *fb, int w, int h, int x, int y, const char *s, uint32
 
 static const char *labels[] = {
     "FULLSCREEN", "WINDOW SIZE", "PICTURE CROP", "SMOOTH SCALING", "REDRAW AT MONITOR RATE",
-    "VOLUME", "SKIP PHILIPS LOGO", "GAME SPEED",
+    "VOLUME", "SKIP PHILIPS LOGO", "GAME SPEED", "SMOOTH PACING",
 };
 
 int settings_cursor;

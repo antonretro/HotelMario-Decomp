@@ -155,11 +155,20 @@ void interp_dump_history(void)
 
 void interp_hook(unsigned int pc)
 {
+    static unsigned real_hist[64], real_n;     /* the last instructions that weren't blank memory */
     history[hook_count & 63] = pc;
+    if (rd16(pc)) real_hist[real_n++ & 63] = pc;
     if ((pc & 1) || pc >= RAM_SIZE) {      /* ran off into nowhere: show how we got here */
         int i;
-        fprintf(stderr, "stopped: interpreter at bad address 0x%x (a7=%x). Last instructions:\n", pc,
+        fprintf(stderr, "stopped: interpreter at bad address 0x%x (a7=%x). Last instructions in real code:\n", pc,
                 m68k_get_reg(NULL, M68K_REG_A7));
+        for (i = 0; i < 64; i++) {
+            unsigned h = real_hist[(real_n + i) & 63];
+            char buf[100];
+            m68k_disassemble(buf, h, M68K_CPU_TYPE_68000);
+            fprintf(stderr, "  %06x  %s\n", h, buf);
+        }
+        fprintf(stderr, "Last instructions:\n");
         for (i = 1; i <= 64; i++) {
             unsigned h = history[(hook_count + i) & 63];
             char buf[100];

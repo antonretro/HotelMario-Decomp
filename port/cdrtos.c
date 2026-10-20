@@ -24,6 +24,7 @@
  */
 #include <setjmp.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -164,7 +165,7 @@ void cdrtos_play(FILE *f, uint32_t pcb)
     play.active = 1;
     play.paused = 0;
     play.stopping = 0;
-    play.start = clock();
+    play.start = game_clock();
     play.fed = 0;
     if (trace)
         fprintf(stderr, "  [cd-i] play from sector %ld: channels %08x audio %04x records %u lists %x/%x/%x\n",
@@ -183,7 +184,7 @@ void cdrtos_stop(void)
 void cdrtos_pause(int paused)
 {
     play.paused = paused;
-    play.start = clock();
+    play.start = game_clock();
     play.fed = 0;
 }
 
@@ -287,16 +288,39 @@ static void feed_sector(void)
 void rt_poll(void)
 {
     long due;
+    {   /* HM_STALL_AT=ms: once, freeze the main loop for 3 s (like dragging the window) - for testing */
+        static long at = -2;
+        if (at == -2) at = getenv("HM_STALL_AT") ? atol(getenv("HM_STALL_AT")) : -1;
+        if (at >= 0 && clock() * 1000 / CLOCKS_PER_SEC >= at) {
+            at = -1;
+            fprintf(stderr, "  [test] main loop stalled for 3 s\n");
+            window_sleep(3000);
+        }
+    }
+    game_heartbeat();
     if (!in_handler) { window_tick(); display_maybe_dump(); }
     if (trace) {                               /* periodic display summary for headless debugging */
         static clock_t last;
-        if (clock() - last > 10 * CLOCKS_PER_SEC) { last = clock(); display_report(); }
+        if (game_clock() - last > 10 * CLOCKS_PER_SEC) { last = game_clock(); display_report(); }
     }
     if ((field_signal || once_signal) && !in_handler) {   /* signals requested from the video driver */
+        /* The field signal is the game's frame sync in the stages: it draws a frame, asks for the signal and
+           waits. So each one is also the moment to show the finished frame (frame_syncs), and with smooth
+           pacing they come every k monitor refreshes, like wait_next_field. */
         static clock_t next_field;
-        clock_t now = clock();
-        if (now >= next_field) {
-            next_field = now + CLOCKS_PER_SEC / field_rate();
+        static unsigned long next_ref;
+        clock_t now = game_clock(), period = CLOCKS_PER_SEC / field_rate();
+        int k = window_refreshes_per_field(), due;
+        if (k) {
+            unsigned long cur = window_refresh_count();
+            due = cur >= next_ref;
+            if (due) next_ref = cur > next_ref + 4 * (unsigned long)k ? cur + k : next_ref + k;
+        } else {
+            due = now >= next_field;
+            if (due) next_field = now - next_field > 5 * period ? now + period : next_field + period;
+        }
+        if (due) {
+            frame_syncs++;
             if (once_signal) {
                 uint32_t sig = once_signal;
                 once_signal = 0;
@@ -312,7 +336,7 @@ void rt_poll(void)
         return;
     }
     if (play.paused) return;
-    due = (long)((double)(clock() - play.start) / CLOCKS_PER_SEC * SECTORS_PER_SEC);
+    due = (long)((double)(game_clock() - play.start) / CLOCKS_PER_SEC * SECTORS_PER_SEC);
     while (play.active && play.fed < due) {
         play.fed++;
         feed_sector();

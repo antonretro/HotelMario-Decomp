@@ -15,6 +15,9 @@ extern int full_frame;                /* --full-frame: show all 280 lines, not t
 
 void os9_init(void);
 void os9_tick(void);               /* update the tick counter in the system globals */
+#include <time.h>
+clock_t game_clock(void);          /* real time minus main-loop stalls (window drags, the settings menu) */
+void game_heartbeat(void);
 RecompFn recomp_lookup(uint32_t addr);
 void interp_call(uint32_t addr);   /* interp.c: run non-recompiled code on Musashi */
 void interp_dump_history(void);    /* --trace: last interpreted instructions */
@@ -55,6 +58,8 @@ void window_pointer(int *x, int *y, int *buttons);
 void window_set_pointer(int x, int y);  /* pt_pos */
 extern const char *input_script;      /* --input "ms:action,...": scripted input for headless tests */
 void window_sleep(int ms);
+int window_refreshes_per_field(void); /* locked pacing: monitor refreshes per game field, 0 = off */
+unsigned long window_refresh_count(void);
 
 /* audio.c - streamed CD-i ADPCM audio through SDL */
 void audio_init(void);

@@ -175,6 +175,23 @@ had it the other way round, so nothing was heard. With the fix:
 - **Frame timing.** The window shows a new picture only after the game finishes one (it waits for the
   next field); drawn at other moments it caught sprites half erased.
 
+### Frame timing and smoothness (2026-10-20)
+- The game logic runs 50 updates a second (PAL); Mario walks 2 pixels per update (100 px/s).
+- **When to show a frame.** The window shows a new picture only when the game has finished one; drawn at
+  other moments it caught sprites half erased. Finished means it waits for the next field: `line_event`
+  (`wait_next_field`) in menus and cutscenes, the **per-field display signal** in the stages. Counting only
+  the first made the stages show ~10 pictures a second - that was the choppiness.
+- **Smooth pacing** (settings, on by default): fields and field signals come every k monitor refreshes
+  (k = refresh / game speed, rounded), so every frame stays on screen equally long. 144 Hz: k = 3, 48 fields
+  a second (47-48 new pictures a second measured in play); 60 Hz: 60.
+- **Game clock.** Dragging the window freezes the main loop on Windows (and the settings menu pauses it);
+  the disc stream, field timer and OS tick counter run on a clock that stops during such stalls, so
+  cutscenes carry on instead of racing through seconds of "overdue" sectors.
+- Run-length detection needs run markers in the data (bit 7); the stage's sprite layer sits on an old
+  cutscene buffer and must not be treated as run-length (it flickered).
+- Picture crop "TV" = lines 2-241: the intro/cutscene pictures are 240 lines; the title and stages add 20
+  lines of PAL-only art below.
+
 ### Debugging aids
 - `--dump-every <ms>` writes `build/port/frames/<ms>.rgb` plus `_A`/`_B` (each plane alone);
   `python -I tools/contact_sheet.py [out.png] [cols] [_A|_B]` makes a timeline sheet.

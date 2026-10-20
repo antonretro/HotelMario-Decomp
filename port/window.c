@@ -35,6 +35,7 @@ static SDL_Texture *tex;
 static SDL_GameController *pad;
 static uint32_t frame[W * H];
 static Uint64 next_frame;
+static unsigned long refresh_count;   /* pictures presented so far (one per monitor refresh) */
 static int refresh_hz = 60;
 /* The CD-i pointer works in double resolution (768 x 560): the game centres it at (383, 234) in play and
    reads movement from there, so it must be able to go past the 384-pixel screen edge. */
@@ -210,10 +211,38 @@ void window_tick(void)
     {   /* draw a new picture only when the game has finished one; otherwise show the last one again */
         static unsigned seen;
         static unsigned long last_ms;
-        if (display_frame_due(&seen, &last_ms)) display_render(frame);
+        static unsigned pictures, syncs0;
+        static Uint64 t0;
+        if (display_frame_due(&seen, &last_ms)) { display_render(frame); pictures++; }
+        if (getenv("HM_PACELOG")) {       /* debug: new pictures and frame syncs per second, in the window */
+            if (!t0) { t0 = now; syncs0 = frame_syncs; }
+            if (now - t0 >= 2 * SDL_GetPerformanceFrequency()) {
+                double s = (double)(now - t0) / (double)SDL_GetPerformanceFrequency();
+                fprintf(stderr, "  [window] at %lu ms: %.1f new pictures/s, %.1f frame syncs/s\n",
+                        (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC), pictures / s, (frame_syncs - syncs0) / s);
+                t0 = now; pictures = 0; syncs0 = frame_syncs;
+            }
+        }
     }
     present(frame);
+    refresh_count++;
 }
+
+static unsigned long refresh_count_value(void);
+
+/* Smooth pacing (settings): run the game one field every k monitor refreshes, k chosen so the field rate is
+   as close as possible to the game speed (144 Hz: k = 3, 48 fields a second; 60 Hz: k = 1). Every game
+   frame then stays on screen for the same time. 0 = off (no window, or the option is off). */
+int window_refreshes_per_field(void)
+{
+    int k;
+    if (headless || !win || !settings.smooth_pacing) return 0;
+    k = (refresh_hz + field_rate() / 2) / field_rate();
+    return k < 1 ? 1 : k;
+}
+
+unsigned long window_refresh_count(void) { return refresh_count_value(); }
+static unsigned long refresh_count_value(void) { return refresh_count; }
 
 void window_sleep(int ms)
 {

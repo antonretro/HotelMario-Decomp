@@ -13,6 +13,7 @@ typedef struct {
     int volume;         /* 0-10 */
     int skip_philips;   /* don't run the Philips logo program at start-up */
     int game_speed;     /* 0 = original 50 Hz (PAL), 1 = 60 Hz (NTSC pace), 2 = 75 Hz */
+    int smooth_pacing;  /* show every game frame for the same number of monitor refreshes */
 } Settings;
 
 extern Settings settings;
