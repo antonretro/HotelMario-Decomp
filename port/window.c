@@ -33,7 +33,11 @@ static SDL_GameController *pad;
 static uint32_t frame[W * H];
 static Uint64 next_frame;
 static int refresh_hz = 60;
-static int ptr_x = W / 2, ptr_y = H / 2, ptr_buttons;
+/* The CD-i pointer works in double resolution (768 x 560): the game centres it at (383, 234) in play and
+   reads movement from there, so it must be able to go past the 384-pixel screen edge. */
+#define PTR_W 768
+#define PTR_H 560
+static int ptr_x = PTR_W / 2, ptr_y = PTR_H / 2, ptr_buttons;
 int headless;
 
 void window_init(void)
@@ -93,8 +97,8 @@ static void read_input(void)
         if (SDL_GameControllerGetButton(pad, SDL_CONTROLLER_BUTTON_B)) b |= 2;
     }
     ptr_x += dx; ptr_y += dy;
-    ptr_x = ptr_x < 0 ? 0 : ptr_x >= W ? W - 1 : ptr_x;
-    ptr_y = ptr_y < 0 ? 0 : ptr_y >= H ? H - 1 : ptr_y;
+    ptr_x = ptr_x < 0 ? 0 : ptr_x >= PTR_W ? PTR_W - 1 : ptr_x;
+    ptr_y = ptr_y < 0 ? 0 : ptr_y >= PTR_H ? PTR_H - 1 : ptr_y;
     ptr_buttons = b;
 }
 
@@ -108,8 +112,14 @@ void window_tick(void)
     if (now < next_frame) return;
     next_frame = (now - next_frame < period) ? next_frame + period : now + period;   /* steady, no drift */
     read_input();
-    display_render(frame);
-    SDL_UpdateTexture(tex, 0, frame, W * 4);
+    {   /* draw a new picture only when the game has finished one; otherwise show the last one again */
+        static unsigned seen;
+        static unsigned long last_ms;
+        if (display_frame_due(&seen, &last_ms)) {
+            display_render(frame);
+            SDL_UpdateTexture(tex, 0, frame, W * 4);
+        }
+    }
     SDL_RenderClear(ren);
     {
         SDL_Rect vis = { 0, VIS_TOP, W, VIS_H };
@@ -132,27 +142,43 @@ void window_sleep(int ms)
 
 void window_set_pointer(int x, int y)
 {
-    ptr_x = x < 0 ? 0 : x >= W ? W - 1 : x;
-    ptr_y = y < 0 ? 0 : y >= H ? H - 1 : y;
+    ptr_x = x < 0 ? 0 : x >= PTR_W ? PTR_W - 1 : x;
+    ptr_y = y < 0 ? 0 : y >= PTR_H ? PTR_H - 1 : y;
 }
 
 /* --input "ms:action,...": at each time (ms since start) do one action. up/down/left/right nudge the pointer
-   60 pixels once (one menu step: the game re-centres it), b1/b2 hold a button for 200 ms. */
+   60 pixels once (one menu step: the game re-centres it), b1/b2 hold a button for 200 ms, and
+   right~1500 (any direction) holds that direction for 1500 ms, moving the pointer like a held key. */
 const char *input_script;
 
 static int script_buttons(void)
 {
     static int next_event;     /* index of the next action to apply */
+    static unsigned long last;
     unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
+    long step = last ? (long)(now - last) * 2 / 5 : 0;   /* 400 pointer pixels a second */
     const char *p = input_script;
     int i = 0, held = 0;
+    last = now;
     while (p && *p) {
-        unsigned long t = strtoul(p, (char **)&p, 10);
+        unsigned long t = strtoul(p, (char **)&p, 10), dur = 0;
         char act[8] = { 0 };
         int n = 0;
         if (*p == ':') p++;
-        while (*p && *p != ',' && n < 7) act[n++] = *p++;
+        while (*p && *p != ',' && *p != '~' && n < 7) act[n++] = *p++;
+        if (*p == '~') dur = strtoul(p + 1, (char **)&p, 10);
         if (*p == ',') p++;
+        if (dur) {                                /* held direction */
+            if (now >= t && now < t + dur) {
+                if (!strcmp(act, "up")) ptr_y -= step;
+                else if (!strcmp(act, "down")) ptr_y += step;
+                else if (!strcmp(act, "left")) ptr_x -= step;
+                else if (!strcmp(act, "right")) ptr_x += step;
+            }
+            if (now >= t && i >= next_event) next_event = i + 1;
+            i++;
+            continue;
+        }
         if (now >= t && i >= next_event) {        /* one-shot pointer nudges, once each */
             if (!strcmp(act, "up")) ptr_y -= 60;
             else if (!strcmp(act, "down")) ptr_y += 60;

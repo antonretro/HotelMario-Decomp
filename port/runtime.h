@@ -43,6 +43,11 @@ void display_maybe_dump(void);
 void display_save_tables(void);
 void display_restore_tables(void);
 extern unsigned dump_at_ms, dump_every_ms;
+/* Frames are shown only when the game has finished drawing one (it waits for the next field), like the
+   real beam timing, or after 100 ms without such a wait. Otherwise the window can catch the game halfway
+   through erasing and redrawing its sprites (the HUD and enemies flickered). */
+extern unsigned frame_syncs;
+int display_frame_due(unsigned *seen, unsigned long *last_ms);
 
 /* window.c - SDL window, frame pacing and input */
 void window_init(void);

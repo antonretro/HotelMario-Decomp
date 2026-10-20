@@ -360,6 +360,19 @@ class Func:
         return "\n".join(out)
 
 
+def jump_table(i, insns, d):
+    """(table address, entries) when i is the jmp of a compiled switch, else None."""
+    if i.mnemonic != "jmp" or i.operands[0].address_mode != K.M68K_AM_PCI_INDEX_8_BIT_DISP:
+        return None
+    table = (i.address + 2 + i.operands[0].mem.disp) & 0xFFFFFFFF
+    for prev in reversed(insns[-6:-1]):                    # the bound check a few instructions before
+        if prev.mnemonic.startswith("cmpi") and prev.operands[0].type == K.M68K_OP_IMM:
+            n = prev.operands[0].imm
+            if 0 <= n < 256:
+                return table, n + 1
+    return None
+
+
 def cfn(addr):
     return f"f_{addr:06x}"
 
@@ -391,6 +404,21 @@ def main():
             i = got[0]
             insns.append(i)
             pc += i.size + (2 if i.mnemonic == "trap" else 0)  # OS-9 call number word follows trap
+            table = jump_table(i, insns, d)
+            if table and pc <= table[0] < e:
+                # A switch: "cmpi #n,dN; bhi default; add.w dN,dN; move.w T(pc,dN.w),dN; jmp T(pc,dN.w)",
+                # then n+1 word offsets from T. Decode up to T, skip the table data (decoding it as code
+                # put the instructions after it out of step), and carry on after it. The case targets are
+                # ordinary instructions in the function, so DYNJUMP finds them.
+                tstart, count = table
+                while pc < tstart:
+                    got = list(md.disasm(d[pc:tstart], pc, count=1))
+                    if not got:
+                        pc += 2
+                        continue
+                    insns.append(got[0])
+                    pc += got[0].size
+                pc = tstart + 2 * count
         funcs[s] = Func(names[s], s, e, insns, None)
 
     # Branches/bsr into the middle of another function (shared tails, local subroutines): give each such

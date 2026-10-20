@@ -7,8 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#include "m68k.h"                          /* the port's CPU state (port/m68k.h) */
+#include "m68k.h"                         /* the port's CPU state (port/m68k.h) */
 #include "runtime.h"
 #include "../tools/ext/Musashi/m68k.h"     /* Musashi's API */
 
@@ -170,6 +171,36 @@ void interp_hook(unsigned int pc)
     if (pc == watch_pc) {
         from_musashi();
         watch_hit(pc);
+    }
+    {   /* HM_HIST=ms: once, at that time, show the last 64 interpreted instructions */
+        static long hist_at = -2;
+        if (hist_at == -2) hist_at = getenv("HM_HIST") ? atol(getenv("HM_HIST")) : -1;
+        if (hist_at >= 0 && (long)(clock() * 1000 / CLOCKS_PER_SEC) >= hist_at && !(hook_count & 255)) {
+            int was = running;
+            running = 1;
+            interp_dump_history();
+            running = was;
+            hist_at = -1;
+        }
+    }
+    {   /* HM_WATCH=addr,addr,...: log the first 5 visits to each interpreted address (branch tracing) */
+        static uint32_t wl[16];
+        static int nwl = -1, hits[16];
+        int i;
+        if (nwl < 0) {
+            const char *s = getenv("HM_WATCH");
+            nwl = 0;
+            while (s && *s && nwl < 16) { wl[nwl++] = (uint32_t)strtoul(s, (char **)&s, 16); if (*s == ',') s++; }
+        }
+        for (i = 0; i < nwl; i++)
+            if (pc == wl[i] && hits[i]++ < 5) {
+            {
+                uint32_t a2 = m68k_get_reg(NULL, M68K_REG_A2), sp = m68k_get_reg(NULL, M68K_REG_A7);
+                fprintf(stderr, "  [watch] reached %06x (d0=%x a2=%x: [470]=%x [478]=%d [480]=%d; sp+c=%x) at %lu ms\n", pc,
+                        m68k_get_reg(NULL, M68K_REG_D0), a2, rd32(a2 + 0x470), (int)rd32(a2 + 0x478),
+                        (int)rd32(a2 + 0x480), rd16(sp + 0xc), (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+            }
+            }
     }
     if (pc == SENTINEL) {
         done = 1;

@@ -480,6 +480,18 @@ void display_render(uint32_t *out)
 /* --dump-at <ms>: write the frame shown at that time, plus each plane alone, as raw RGB for comparisons */
 unsigned dump_at_ms;
 unsigned dump_every_ms;   /* --dump-every <ms>: a timeline of frames, build/port/frames/<ms>.rgb */
+unsigned frame_syncs;
+
+int display_frame_due(unsigned *seen, unsigned long *last_ms)
+{
+    unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
+    if (*seen != frame_syncs || now - *last_ms >= 100) {
+        *seen = frame_syncs;
+        *last_ms = now;
+        return 1;
+    }
+    return 0;
+}
 
 void display_maybe_dump(void)
 {
@@ -488,7 +500,10 @@ void display_maybe_dump(void)
     static uint32_t f[W * H];
     unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
     int pass;
-    if (dump_every_ms && now >= next_every) {   /* <ms>.rgb = the frame, <ms>_A / _B = each plane alone */
+    static unsigned dump_seen;
+    static unsigned long dump_last;
+    if (dump_every_ms && now >= next_every && display_frame_due(&dump_seen, &dump_last)) {
+        /* <ms>.rgb = the frame, <ms>_A / _B = each plane alone */
         char name[64];
         FILE *o;
         int i;

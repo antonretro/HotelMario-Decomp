@@ -50,8 +50,32 @@ void os9_tick(void)
 static void ticker(void *unused)
 {
     extern void __stdcall Sleep(unsigned long);
+    int gamelog = getenv("HM_GAMELOG") != 0;
+    uint32_t last[4] = { 0 };
     (void)unused;
-    for (;;) { os9_tick(); Sleep(2); }
+    for (;;) {
+        os9_tick();
+        {   /* HM_MEMDUMP=ms: once at that time, write RAM 0x200000-0x300000 to build/port/mem.bin */
+            static long at = -2;
+            if (at == -2) at = getenv("HM_MEMDUMP") ? atol(getenv("HM_MEMDUMP")) : -1;
+            if (at >= 0 && (long)(clock() * 1000 / CLOCKS_PER_SEC) >= at) {
+                FILE *o = fopen("build/port/mem.bin", "wb");
+                if (o) { fwrite(RAM + 0x200000, 1, 0x100000, o); fclose(o); }
+                at = -1;
+            }
+        }
+        if (gamelog) {     /* debug: the input fields the game stores ([470] buttons, [478] x, [480] y) */
+            uint32_t g = 0x200050, pl = rd32(g + 0x250);
+            uint32_t now[4] = { rd32(g + 0x470), rd32(g + 0x478), rd32(g + 0x480), rd16(pl + 0x10e) };
+            if (memcmp(now, last, sizeof now)) {
+                fprintf(stderr, "  [game] buttons %x x %d y %d | mario x %d state %d at %lu ms\n", now[0],
+                        (int)now[1], (int)now[2], (int16_t)now[3], (int16_t)rd16(pl + 0x11e),
+                        (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+                memcpy(last, now, sizeof now);
+            }
+        }
+        Sleep(2);
+    }
 }
 #endif
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
@@ -113,11 +137,40 @@ void os9_init(void)
     paths[2].f = stderr;
 }
 
+/* HM_TEST_SPRINTF: once the C library is set up (first file open), run the game's own sprintf on a few
+   formats and print what it makes - a check of the recompiled library code. */
+static void test_sprintf(void)
+{
+    static const char *fmts[] = { "L%d_am.rtf", "%d", "%x", "%s", "%5d|" };
+    static const int vals[] = { 0, 1, 7, 12, -3 };
+    void call_addr(uint32_t addr, uint32_t ret);
+    Cpu saved = cpu;
+    uint32_t buf = 0xF00000, fmt = 0xF00100, str = 0xF00200;
+    int f, v;
+    strcpy((char *)RAM + str, "abc");
+    for (f = 0; f < 5; f++)
+        for (v = 0; v < 5; v++) {
+            strcpy((char *)RAM + fmt, fmts[f]);
+            memset(RAM + buf, 0, 64);
+            cpu.a[7] = saved.a[7] - 0x200;
+            PUSH32(f == 3 ? str : (uint32_t)vals[v]);   /* the third argument goes on the stack */
+            cpu.d[0] = buf;
+            cpu.d[1] = fmt;
+            call_addr(0x18012, 0xFFFFFFF0u);             /* sprintf */
+            fprintf(stderr, "  [test] sprintf(\"%s\", %d) -> \"%s\"\n", fmts[f], vals[v], (char *)RAM + buf);
+            if (f == 3) break;
+        }
+    cpu = saved;
+}
+
 static void io_open(int create)
 {
     char name[128], host[512];
-    int p = new_path();
+    int p;
     uint32_t a = cpu.a[0];
+    static int tested;
+    if (!tested && getenv("HM_TEST_SPRINTF")) { tested = 1; test_sprintf(); a = cpu.a[0]; }
+    p = new_path();
     cstring(a, name, sizeof name);
     cpu.a[0] = a + (uint32_t)strlen(name);
     if (p < 0) { fail(E_BPNUM); return; }
@@ -353,6 +406,7 @@ static void wait_next_field(void)   /* 50 fields per second, like a PAL CD-i */
 {
     static clock_t next;
     clock_t now = clock(), field = CLOCKS_PER_SEC / 50;
+    frame_syncs++;                     /* the game finished a frame: now is the time to show it */
     if (!next || now - next > 5 * field) next = now;   /* resync after long gaps */
     next += field;
     while (clock() < next) {
@@ -548,7 +602,7 @@ void os9_trap(int n, uint32_t code)
         } else if (code == 0x8E && fn == 0x59 && (cpu.d[2] & 0xFFFF) == 4) {
             /* pt_org: pointer origin; the port's pointer is already in screen coordinates */
         } else if (code == 0x8D && fn == 0x59) {                       /* pointer coordinates (pt_coord) */
-            /* d0.w = buttons, d1 = y << 16 | x, from the window's keyboard/gamepad state.
+            /* d0.w = buttons, d1 = x << 16 | y, from the window's keyboard/gamepad state.
                --press N also simulates a button 1 press every N polls (for headless testing). */
             static unsigned polls;
             int px, py, buttons;
@@ -556,8 +610,34 @@ void os9_trap(int n, uint32_t code)
             window_pointer(&px, &py, &buttons);
             if (press_every && polls % press_every < 20) buttons |= 1;
             cpu.d[0] = (uint32_t)buttons;
-            cpu.d[1] = ((uint32_t)py << 16) | (uint32_t)px;
+            /* x in the high word, y in the low word, as pt_pos takes them: the clib binding stores the low
+               word through the y pointer and the high word through the x pointer. (Swapped, the title menu
+               saw y = 383 after centring at (383, 100) and ran the highlight down to DEMO.) */
+            cpu.d[1] = ((uint32_t)px << 16) | (uint32_t)py;
             if (trace && polls < 400) fprintf(stderr, "  [input] pointer read on %s -> buttons %d\n", p->name, buttons);
+            if (getenv("HM_PTRLOG")) {           /* every change of what the game reads */
+                static int lx = -1, ly = -1, lb = -1;
+                static unsigned reads;
+                static uint32_t callers[32], counts[32];
+                uint32_t ret = rd32(cpu.a[7] + 12);   /* pt_coord saved d1-d2/a0, then its return address */
+                int k;
+                reads++;
+                for (k = 0; k < 32 && callers[k] && callers[k] != ret; k++) ;
+                if (k < 32) { callers[k] = ret; counts[k]++; }
+                if (!(reads & 0xFFFFF))
+                    for (k = 0; k < 32 && callers[k]; k++)
+                        fprintf(stderr, "  [ptr] caller %06x: %u reads\n", callers[k], counts[k]);
+                if (px != lx || py != ly || buttons != lb) {
+                    /* and the player: game record (gdsP) + 0x250 -> player, +0x10e x, +0x110 y, +0x11e state */
+                    uint32_t pl = rd32(0x200050 + 0x250);
+                    fprintf(stderr, "  [ptr] read %u: x %d y %d buttons %d at %lu ms | mario x %d y %d state %d, "
+                            "game prev x %d y %d\n", reads, px, py, buttons,
+                            (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC), (int16_t)rd16(pl + 0x10e),
+                            (int16_t)rd16(pl + 0x110), (int16_t)rd16(pl + 0x11e), (int)rd32(0x200050 + 0x47c),
+                            (int)rd32(0x200050 + 0x484));
+                }
+                lx = px; ly = py; lb = buttons;
+            }
         } else if (p->f && code == 0x8E && fn == 0x2D) {               /* SS_Play: a0 = play control block */
             cdrtos_play(p->f, cpu.a[0]);
         } else if (code == 0x8E && (fn == 0x31 || fn == 0x36)) {       /* SS_Abort, SS_Stop */

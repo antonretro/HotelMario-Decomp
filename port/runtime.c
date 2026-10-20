@@ -59,6 +59,21 @@ void call_addr(uint32_t addr, uint32_t ret)
     if (rd16(addr) == 0x4EF9 && !lookup(addr))
         addr = rd32(addr + 2);
     fn = lookup(addr);
+    {   /* Functions that run on the interpreter instead of their recompiled version. The C library's
+           formatting code (printf/fprintf/sprintf, hand-written 68000 with jump tables) comes out wrong from
+           the recompiler - sprintf("L%d_am.rtf", 1) gave "Ld_am.rtf", so a new game couldn't find its
+           level - while Musashi runs it exactly. HM_INTERP=addr,... adds more (to test recompiled code). */
+        static uint32_t forced[16] = { 0x17f80 /* printf */, 0x17fcc /* fprintf */, 0x18012 /* sprintf */ };
+        static int nforced = -1;
+        int k;
+        if (nforced < 0) {
+            const char *s = getenv("HM_INTERP");
+            nforced = 3;
+            while (s && *s && nforced < 16) { forced[nforced++] = (uint32_t)strtoul(s, (char **)&s, 16); if (*s == ',') s++; }
+        }
+        for (k = 0; k < nforced; k++)
+            if (addr == forced[k]) fn = 0;
+    }
     if (!fn) {
         /* no recompiled version (e.g. a code module streamed from the disc): interpret it */
         interp_call(addr);
