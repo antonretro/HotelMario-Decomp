@@ -111,6 +111,16 @@ void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
     region_next = (region_next + 1) % NREGION;
 }
 
+/* End of the streamed picture data that addr lies in (0 = not streamed video, no limit known) */
+static uint32_t region_end(uint32_t addr)
+{
+    int i;
+    for (i = 0; i < NREGION; i++)
+        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len)
+            return regions[i].start + regions[i].len;
+    return 0;
+}
+
 static int is_run_length(uint32_t addr)
 {
     int i;
@@ -276,7 +286,9 @@ static uint32_t yuv(int y, int u, int v)
 static const int DQ[16] = { 0, 1, 4, 9, 16, 27, 44, 79, -128, -79, -44, -27, -16, -9, -4, -1 };
 
 static int plane_rl[2];   /* decide once per frame whether each plane shows run-length data */
+static uint32_t plane_end[2];   /* end of the streamed data the plane is showing (0 = unknown) */
 static int only_plane;    /* debugging: 1 = draw plane A only, 2 = plane B only */
+static uint32_t frame_start[2];   /* where each plane's picture started in the last frame drawn */
 
 /* Draw one line of a plane; returns the bytes it used. opaque[x] = 0 where the pixel is transparent. */
 static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
@@ -285,6 +297,9 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
     int coding = vs.coding[p], x;
     int clut_off = p ? 128 : 0, icf = vs.icf[p];
     if (!a || !coding) { memset(opaque, 0, W); return 0; }
+    /* Past the end of the picture the disc streamed into this buffer (the Philips logo's frames are 240
+       lines on a 280-line screen): show nothing rather than the memory that follows. */
+    if (plane_end[p] && a >= plane_end[p]) { memset(opaque, 0, W); return 0; }
     if (plane_rl[p] && coding != 5) {                   /* RL7: colour byte, or 0x80|colour + count (0 = rest of line) */
         uint32_t s = a;
         x = 0;
@@ -410,9 +425,12 @@ void display_render(uint32_t *out)
             uint32_t before = vs.line_addr[p];
             if (active_lct[p] >= 0 && y < LCT_LINES)
                 for (c = 0; c < LCT_COLS; c++) instr(lct[active_lct[p]][y][c], p);
-            if (vs.line_addr[p] != before || y == 0)   /* new display start: check what data it shows */
+            if (vs.line_addr[p] != before || y == 0) { /* new display start: check what data it shows */
                 plane_rl[p] = is_run_length(vs.line_addr[p]);
+                plane_end[p] = region_end(vs.line_addr[p]);
+            }
         }
+        if (y == 0) { frame_start[0] = vs.line_addr[0]; frame_start[1] = vs.line_addr[1]; }
         used[0] = draw_line(0, la, oa);
         used[1] = draw_line(1, lb, ob);
         if (trace && y == 140) {                 /* sample plane A's top-left pixel source for key debugging */
@@ -505,6 +523,10 @@ void display_maybe_dump(void)
             }
             fclose(o);
         }
+    }
+    {   /* and the 16 KB plane A shows from, to compare with the disc data */
+        FILE *o = fopen("build/port/frame_A_mem.bin", "wb");
+        if (o) { fwrite(RAM + (frame_start[0] & RAM_MASK), 1, 16384, o); fclose(o); }
     }
     fprintf(stderr, "  [dump] frames written at %lu ms (plane A start %06x coding %x / B %06x coding %x)\n", now,
             vs.line_addr[0], vs.coding[0], vs.line_addr[1], vs.coding[1]);
