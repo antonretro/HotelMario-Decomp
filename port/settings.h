@@ -7,7 +7,7 @@
 typedef struct {
     int fullscreen;
     int scale;          /* window size, times 384 x 260 */
-    int tv_crop;        /* 0 = all 280 lines, 1 = edges (2-261), 2 = like a TV (14-253) */
+    int tv_crop;        /* 0 = all 280 lines, 1 = edges (2-261), 2 = like a TV (2-241, 240 lines) */
     int smooth;         /* smooth (linear) scaling instead of sharp pixels */
     int monitor_rate;   /* redraw at the monitor's refresh rate instead of 50 Hz */
     int volume;         /* 0-10 */
