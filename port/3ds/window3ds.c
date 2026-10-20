@@ -85,7 +85,7 @@ void window_init(void)
     gfxInitDefault();
     gfxSetDoubleBuffering(GFX_TOP, true);
     consoleInit(GFX_BOTTOM, 0);
-    printf("Hotel Mario (CD-i) - 3DS port\nA = button 1, B = button 2\nSTART + SELECT = quit\n\n");
+    printf("Hotel Mario (CD-i) - 3DS port\nPort by Anton Retro\n\nA = button 1, B = button 2\nSTART + SELECT = quit\n\n");
     audio_init();
     audio_set_volume(settings.volume);
     start_drawer();
