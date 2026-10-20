@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Luckiest+Guy&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-  /* Look: the game's title screen. Blue sky, the red HOTEL MARIO logo with its dark outline, the yellow menu text, green grass,
-     wooden doors. Panels like the other Anton Retro project sites. Every number comes from progress.json (tools/progress.py). */
+  /* Look: the game's title screen and hotels. The red HOTEL MARIO logo with its dark outline, the yellow menu text, green grass,
+     hotel-corridor wallpaper. Layout, fonts and panels shared with the other Anton Retro project sites. Every number comes from progress.json (tools/progress.py). */
   :root {
     --ink: #240e14; --ink-2: #5b3c42;
     --card: #fffaf0; --card-2: #f1e3c8;
@@ -27,10 +27,17 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body { margin: 0; color: var(--ink); background-color: #6cc77a;
-    background-image: linear-gradient(#4aa5e7 0, #bfe4fb 480px, #7fd08a 480px, #52bd63 100%); background-attachment: fixed;
-    font: 17px/1.55 Fredoka, system-ui, sans-serif; overflow-x: hidden; }
+  body { margin: 0; color: var(--ink); background-color: #6e1230; overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 50% 50%, rgba(235, 235, 15, .22) 0 2px, transparent 3px),
+      repeating-linear-gradient(90deg, #7c1636 0 26px, #6e1230 26px 30px, #7c1636 30px 34px, #651029 34px 60px);
+    background-size: 60px 60px, auto;
+    background-attachment: fixed;
+    font: 17px/1.55 Fredoka, system-ui, sans-serif; }
+  body::after { content: ""; position: fixed; left: 0; right: 0; bottom: 0; height: 70px; z-index: -1; pointer-events: none;
+    background: repeating-linear-gradient(90deg, var(--wood) 0 58px, #7a3f2c 58px 60px); border-top: 6px solid var(--wood-l); box-shadow: 0 -3px 0 var(--ink); }
   a { color: var(--red-d); }
+  .head a, footer a { color: var(--yellow-l); }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
   code { font: 600 .88em ui-monospace, Consolas, monospace; }
 
@@ -76,7 +83,7 @@
   .hero .wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: center; }
   .hero h1 { font-size: clamp(46px, 7vw, 84px); }
   .hero h1 small { display: block; font-size: .42em; margin-top: 10px; }
-  .hero p.lead { font-size: 19px; color: var(--ink-2); margin: 16px 0 22px; max-width: 34em; }
+  .hero p.lead { font-size: 19px; color: #ffe6ee; margin: 16px 0 22px; max-width: 34em; }
   .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
   .tv { justify-self: center; width: min(100%, 420px); background: linear-gradient(#5a5560, #2c2930); border: 4px solid #fff; border-radius: 26px; padding: 18px;
     box-shadow: 0 8px 0 rgba(36, 14, 20, .18), 0 24px 50px rgba(20, 70, 110, .25); }
@@ -98,8 +105,8 @@
   /* section heads */
   section { padding: 34px 0; scroll-margin-top: 70px; }
   .head { display: flex; align-items: end; justify-content: space-between; gap: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
-  .head h2 { font-size: clamp(32px, 4vw, 44px); }
-  .head p { margin: 0; color: var(--ink-2); max-width: 38em; }
+  .head h2 { font-size: clamp(32px, 4vw, 44px); color: var(--yellow); }
+  .head p { margin: 0; color: #ffe6ee; max-width: 38em; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
   .card h3 { margin: 0 0 8px; font-size: 20px; }
@@ -126,32 +133,17 @@
   .bar i.y { background: linear-gradient(var(--yellow-l), var(--yellow) 55%, #b5b00c); box-shadow: inset 0 -3px 0 rgba(90, 80, 0, .3); }
   .hud .bar { background: var(--hud-d); box-shadow: inset 0 0 0 2px #fff; }
 
-  /* the hotel: one door per function, five floors in address order */
-  .legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--ink-2); align-items: center; }
-  .legend .dk { display: inline-flex; gap: 6px; align-items: center; background: #fff; border: 2px solid var(--card-2); border-radius: 999px; padding: 2px 10px 2px 8px; font-weight: 600; color: var(--ink); }
-  .legend .dk i { width: 11px; height: 16px; border-radius: 6px 6px 0 0; border: 2px solid var(--ink); border-bottom: 0; display: inline-block; }
-  .hotelb { position: relative; margin: 46px 6px 0; }
-  .hotelb .sign { position: absolute; left: 50%; top: -34px; transform: translateX(-50%) rotate(-2deg); z-index: 2; font: 400 22px/1 "Luckiest Guy", sans-serif;
-    padding: 8px 16px 4px; background: var(--wood-l); border: 4px solid var(--ink); color: var(--yellow); border-radius: 8px; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; box-shadow: inset 0 -5px 0 var(--wood); }
-  .roof { height: 54px; background-color: var(--red); border: 4px solid var(--ink); border-bottom-width: 6px; border-radius: 50% 50% 10px 10px / 100% 100% 10px 10px; margin: 0 -10px;
-    background-image: radial-gradient(circle at 12% 62%, #fff 0 11px, transparent 12px), radial-gradient(circle at 34% 38%, #fff 0 14px, transparent 15px),
-      radial-gradient(circle at 64% 34%, #fff 0 13px, transparent 14px), radial-gradient(circle at 87% 62%, #fff 0 10px, transparent 11px); }
-  .hbody { display: grid; grid-template-columns: 30px 1fr 30px; background: repeating-linear-gradient(0deg, #c2513a 0 12px, #8c3424 12px 14px); border-left: 4px solid var(--ink); border-right: 4px solid var(--ink); }
-  .shaft { background: #2a2440; border-left: 3px solid var(--ink); border-right: 3px solid var(--ink); position: relative; overflow: hidden; }
-  .car { position: absolute; left: 2px; right: 2px; height: 46px; background: var(--yellow); border-radius: 3px; box-shadow: inset 0 0 0 3px var(--ink), inset 0 -9px 0 #b5b00c; transition: top 2.5s ease-in-out; }
-  .floor { border-bottom: 7px solid #c2baa6; box-shadow: 0 3px 0 var(--ink); padding: 8px 8px 0; position: relative; margin-bottom: 3px; }
-  .floor .label { position: absolute; left: 8px; top: 7px; font: 400 9px/1 var(--pixel); color: var(--yellow); text-shadow: 2px 0 #000, -2px 0 #000, 0 2px #000, 0 -2px #000; }
-  .doors { display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-end; padding: 22px 0 0; }
-  .door { width: 14px; height: 24px; border-radius: 7px 7px 0 0; cursor: pointer; position: relative; border: 2px solid var(--ink); border-bottom: 0; padding: 0; }
-  .door.asm { background: #ffe95c; box-shadow: 0 0 8px #fff6b0; }
-  .door.c { background: linear-gradient(90deg, var(--wood) 0 45%, var(--wood-l) 45% 55%, var(--wood) 55%); }
-  .door.asmsrc { background: linear-gradient(90deg, #c5bf5b 0 45%, #e5df85 45% 55%, #c5bf5b 55%); }
-  .door.c::after, .door.asmsrc::after { content: ""; position: absolute; right: 2px; top: 12px; width: 2px; height: 2px; background: var(--yellow); border-radius: 50%; }
-  .door.dim { opacity: .15; }
-  .door:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-  .lobby { height: 60px; background: #c2baa6; display: flex; justify-content: center; align-items: flex-end; border-left: 4px solid var(--ink); border-right: 4px solid var(--ink); }
-  .lobby i { width: 100px; height: 48px; background: linear-gradient(90deg, var(--wood) 0 48%, var(--ink) 48% 52%, var(--wood) 52%); border: 4px solid var(--ink); border-bottom: 0; border-radius: 60px 60px 0 0; }
-  .street { height: 16px; background: #ada584; border-top: 4px solid var(--ink); margin: 0 -10px; border-radius: 0 0 10px 10px; }
+  /* functions: one split bar and three counts */
+  .split { display: flex; height: 34px; border-radius: 999px; overflow: hidden; background: var(--track); box-shadow: inset 0 3px 0 rgba(36, 14, 20, .12); margin: 4px 0 16px; }
+  .split i { display: block; height: 100%; width: 0; transition: width 1.2s cubic-bezier(.2, .8, .2, 1); }
+  .split .c { background: linear-gradient(#5fd377, var(--grass-d)); }
+  .split .a { background: linear-gradient(var(--yellow-l), var(--yellow) 55%, #b5b00c); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .tiles { grid-template-columns: 1fr; } }
+  .tile { display: grid; grid-template-columns: auto 1fr; gap: 0 12px; align-items: center; background: #fff; border: 3px solid var(--card-2); border-radius: 14px; padding: 12px 14px; }
+  .tile .n { grid-row: span 2; font: 400 40px/1 "Luckiest Guy", sans-serif; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; }
+  .tile b { font-size: 16.5px; } .tile small { color: var(--ink-2); font-size: 14px; line-height: 1.35; }
+  .tile.c .n { color: #5fd377; } .tile.a .n { color: var(--yellow); } .tile.t .n { color: #fff; }
 
   /* tables, filters, chips */
   .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -186,7 +178,7 @@
     transform: translate(-50%, calc(-100% - 12px)); max-width: min(320px, 92vw); opacity: 0; transition: opacity .12s; }
   .tip b { color: var(--yellow); font-family: ui-monospace, Consolas, monospace; }
 
-  footer { padding: 30px 0 40px; color: #10401f; font-size: 14px; }
+  footer { padding: 30px 0 90px; color: #ffe6ee; font-size: 14px; }
   footer .wrap { display: flex; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
 </style>
@@ -195,7 +187,7 @@
 <header class="topbar">
   <div class="wrap">
     <a class="logo" href="#top"><svg viewBox="0 0 32 40" aria-hidden="true"><path d="M3 39V16a13 13 0 0 1 26 0v23z" fill="#944e38" stroke="#240e14" stroke-width="3"/><path d="M16 5v34" stroke="#240e14" stroke-width="2"/><circle cx="23" cy="24" r="2.2" fill="#ebeb0f"/></svg>Hotel <b>Mario</b></a>
-    <nav aria-label="Sections"><a href="#progress">Progress</a><a href="#hotel">The hotel</a><a href="#rooms">Rooms</a><a href="#port">Port</a><a href="#disc">Your disc</a><a href="#story">What is this?</a><a href="https://github.com/antonretro/HotelMario-Decomp">GitHub</a></nav>
+    <nav aria-label="Sections"><a href="#progress">Progress</a><a href="#functions">Functions</a><a href="#port">Port</a><a href="#disc">Your disc</a><a href="#story">What is this?</a><a href="https://github.com/antonretro/HotelMario-Decomp">GitHub</a></nav>
   </div>
 </header>
 
@@ -232,7 +224,7 @@
       </div>
       <div class="meters">
         <div class="meter hud">
-          <div class="top"><span class="lbl">Doors closed</span><span class="pct" id="funcs">…</span></div>
+          <div class="top"><span class="lbl">Functions done</span><span class="pct" id="funcs">…</span></div>
           <div class="bar" role="img" id="funcsbar"><i></i></div>
           <p><b id="funcs_c">…</b> functions decompiled to C, plus <b id="funcs_a">…</b> that the original team wrote in assembly themselves (they stay assembly).</p>
         </div>
@@ -250,34 +242,23 @@
     </div>
   </section>
 
-  <section id="hotel">
+  <section id="functions">
     <div class="wrap">
-      <div class="head"><h2 class="toon">The hotel</h2><p>The game is about closing doors, so here every door is one function from the game's original symbol table, in address order. A door closes when its function is rewritten in C. Hover or tap a door for details.</p></div>
+      <div class="head"><h2 class="toon">Functions</h2><p>The main program has <span id="ftotal">…</span> functions, named in the game's original symbol file. Each one is either rewritten in C, kept as the original team's own hand-written assembly, or still to do.</p></div>
       <div class="card pad">
-        <div class="legend"><span class="dk"><i style="background:#ffe95c"></i>Open: still assembly</span><span class="dk"><i style="background:var(--wood)"></i>Wooden: decompiled to C</span><span class="dk"><i style="background:#c5bf5b"></i>Brass: original hand-written assembly</span></div>
-        <div class="hotelb">
-          <div class="sign">HOTEL</div>
-          <div class="roof"></div>
-          <div class="hbody">
-            <div class="shaft"><div class="car" id="carL"></div></div>
-            <div id="floors"></div>
-            <div class="shaft"><div class="car" id="carR"></div></div>
-          </div>
-          <div class="lobby"><i></i></div>
-          <div class="street"></div>
+        <div class="split" role="img" id="split"><i class="c"></i><i class="a"></i></div>
+        <div class="tiles">
+          <div class="tile c"><span class="n" id="nc">…</span><b>Rewritten in C</b><small>Decompiled into readable C</small></div>
+          <div class="tile a"><span class="n" id="na">…</span><b>Original assembly</b><small>Written in assembly by the original team, so they stay that way</small></div>
+          <div class="tile t"><span class="n" id="nt">…</span><b>Still to do</b><small>Disassembled, not rewritten in C yet</small></div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section id="rooms">
-    <div class="wrap">
-      <div class="head"><h2 class="toon">Every room</h2><p>All functions in <code>cdi_hotel</code>, with their names from the original <code>.stb</code> symbol file and their offset in the program.</p></div>
-      <div class="card pad">
+      <div class="card pad" style="margin-top:18px">
+        <h3>Every function</h3>
         <div class="filters">
-          <input id="q" type="search" placeholder="Find a room: bonus, cd_, mario…" aria-label="Search functions">
+          <input id="q" type="search" placeholder="Search: bonus, cd_, mario…" aria-label="Search functions">
           <div class="seg-ctl" role="group" aria-label="Show">
-            <button data-f="all" class="on">All</button><button data-f="c">In C</button><button data-f="asmsrc">Original asm</button><button data-f="asm">Still open</button>
+            <button data-f="all" class="on">All</button><button data-f="c">In C</button><button data-f="asmsrc">Original asm</button><button data-f="asm">To do</button>
           </div>
           <span id="count" class="count"></span>
         </div>
@@ -366,7 +347,6 @@
     <span>Hotel Mario Decomp, by Anton Retro</span>
   </div>
 </footer>
-<div class="tip" id="tip" role="tooltip"></div>
 
 <script src="progress.js"></script>
 <script>
@@ -392,44 +372,18 @@
   $("sha").innerHTML = `<b>${P.target.name}</b> (${P.target.region}) reassembles to the original byte for byte: SHA1 <code>${P.target.sha1.slice(0, 12)}…</code>`;
   $("foot").textContent = `${n(P.bytes_c)} of ${n(P.bytes_total)} game code bytes in C.`;
 
-  // ---- the hotel ----
-  const funcs = P.functions.filter(f => f.size > 0);
-  const label = s => s === "c" ? "decompiled to C" : s === "asmsrc" ? "original hand-written assembly" : "still assembly";
-  const FLOORS = 5, per = Math.ceil(funcs.length / FLOORS);
-  const floorsEl = $("floors"), doors = [];
-  for (let fl = FLOORS - 1; fl >= 0; fl--) {
-    const slice = funcs.slice(fl * per, (fl + 1) * per);
-    if (!slice.length) continue;
-    const floor = document.createElement("div"); floor.className = "floor";
-    floor.innerHTML = `<span class="label">FLOOR ${fl + 1} · ${slice.filter(f => f.status !== "asm").length}/${slice.length}</span>`;
-    const row = document.createElement("div"); row.className = "doors";
-    for (const f of slice) {
-      const d = document.createElement("button");
-      d.className = "door " + f.status; d.setAttribute("aria-label", `${f.name}, ${label(f.status)}`); d._f = f;
-      row.appendChild(d); doors.push(d);
-    }
-    floor.appendChild(row); floorsEl.appendChild(floor);
-  }
-  const tip = $("tip");
-  const showTip = d => {
-    const f = d._f, r = d.getBoundingClientRect();
-    tip.innerHTML = `<b>${f.name}</b><br>offset 0x${f.addr.toString(16)} · ${n(f.size)} bytes<br>${f.status === "asm" ? "○" : "✓"} ${label(f.status)}${f.status === "asm" && f.raw ? ` · ${f.raw} raw bytes` : ""}`;
-    tip.style.left = Math.min(innerWidth - 120, Math.max(120, r.left + r.width / 2)) + "px"; tip.style.top = r.top + "px"; tip.style.opacity = 1;
-  };
-  const hideTip = () => tip.style.opacity = 0;
-  floorsEl.addEventListener("mouseover", e => e.target._f ? showTip(e.target) : hideTip());
-  floorsEl.addEventListener("mouseleave", hideTip);
-  floorsEl.addEventListener("focusin", e => { if (e.target._f) showTip(e.target); });
-  floorsEl.addEventListener("focusout", hideTip);
-  addEventListener("scroll", hideTip, { passive: true });
+  // ---- functions ----
+  const nt = P.funcs_total - closed;
+  $("ftotal").textContent = P.funcs_total;
+  $("nc").textContent = P.funcs_c; $("na").textContent = P.funcs_asmsrc || 0; $("nt").textContent = nt;
+  $("split").setAttribute("aria-label", `${P.funcs_c} in C, ${P.funcs_asmsrc || 0} original assembly, ${nt} to do`);
+  requestAnimationFrame(() => {
+    $("split").children[0].style.width = (100 * P.funcs_c / P.funcs_total) + "%";
+    $("split").children[1].style.width = (100 * (P.funcs_asmsrc || 0) / P.funcs_total) + "%";
+  });
 
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const cars = [$("carL"), $("carR")];
-  const move = () => { const h = floorsEl.offsetHeight; cars.forEach(c => c.style.top = Math.floor(Math.random() * Math.max(1, h - 46)) + "px"); };
-  move(); if (!reduce) setInterval(move, 3200);
-
-  // ---- every room ----
-  const chip = s => s === "c" ? `<span class="chip done">✓ In C</span>` : s === "asmsrc" ? `<span class="chip orig">✓ Original asm</span>` : `<span class="chip todo">○ Assembly</span>`;
+  // ---- every function ----
+  const chip = s => s === "c" ? `<span class="chip done">✓ In C</span>` : s === "asmsrc" ? `<span class="chip orig">✓ Original asm</span>` : `<span class="chip todo">○ To do</span>`;
   const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   let filter = "all", shown = 30;
   const draw = () => {
@@ -438,7 +392,6 @@
     $("count").textContent = `${list.length} functions`;
     $("rows").innerHTML = list.slice(0, shown).map(f => `<tr><td><code>${esc(f.name)}</code></td><td class="num"><code>0x${f.addr.toString(16)}</code></td><td class="num">${n(f.size)}</td><td>${chip(f.status)}</td></tr>`).join("");
     $("more").hidden = list.length <= shown;
-    for (const d of doors) d.classList.toggle("dim", (!!q && !d._f.name.toLowerCase().includes(q)) || (filter !== "all" && d._f.status !== filter));
   };
   $("q").oninput = () => { shown = 30; draw(); };
   document.querySelectorAll(".seg-ctl button").forEach(b => b.onclick = () => {
