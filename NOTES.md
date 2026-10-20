@@ -191,6 +191,17 @@ had it the other way round, so nothing was heard. With the fix:
   cutscene buffer and must not be treated as run-length (it flickered).
 - Picture crop "TV" = lines 2-241: the intro/cutscene pictures are 240 lines; the title and stages add 20
   lines of PAL-only art below.
+- **Fades read the screen brightness first.** `fade`/`unfade` call `dc_rdfi` (SetStt 0x56 sub 3) on FCT
+  slot 4 and skip the fade when the screen is already black / lit. Unanswered, a second fade ran from full
+  brightness over a black screen whose planes were mid-switch: static before the intro text and a lone
+  shifted hotel logo before each stage card. The port now answers dc_rdfct/rdfi/rdlct/rdli from its tables.
+- Hotel map fade-in: the selected hotel's highlight (plane A, brightness 0, overlay mode) shows as a black
+  tree shape for ~0.5 s until the map turns mixing on. That follows the register writes and MCD212 rules
+  (A in front, brightness applies in overlay), so it is probably what a real player shows too.
+
+### Saving (2026-10-20)
+- `/nvr/hotel_mario` (one 62-byte record: three-letter name at +0x24, hotel/stage at +0x34) lives in
+  `saves/`. Hold Down + button 2 on a stage card to save; RESTORE under PLAYER 1 lists the saves.
 
 ### Debugging aids
 - `--dump-every <ms>` writes `build/port/frames/<ms>.rgb` plus `_A`/`_B` (each plane alone);

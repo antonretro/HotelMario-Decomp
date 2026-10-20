@@ -257,6 +257,28 @@ void display_setstt(void)
                 log_write("wrfct", t, (cpu.d[4] & 0xFFFF) + i, rd32(cpu.a[0] + 4 * i));
             }
         break;
+    /* Reads give back what the tables hold. The game's fade/unfade read the brightness slot first and skip
+       the fade when the screen is already black (or already lit); unanswered, they faded a black screen
+       again from full brightness, flashing the half-switched pictures (static before the stage cards). */
+    case 0x01:                                  /* dc_rdfct(fct, start, count, buf) */
+        for (i = 0; i < (cpu.d[5] & 0xFFFF) && t < NTAB; i++)
+            wr32(cpu.a[0] + 4 * i, (cpu.d[4] & 0xFFFF) + i < FCT_SLOTS ? fct[t][(cpu.d[4] & 0xFFFF) + i] : 0x10000000);
+        break;
+    case 0x03:                                  /* dc_rdfi(fct, slot) -> instruction */
+        cpu.d[0] = t < NTAB && (cpu.d[4] & 0xFFFF) < FCT_SLOTS ? fct[t][cpu.d[4] & 0xFFFF] : 0x10000000;
+        break;
+    case 0x07: {                                /* dc_rdlct(lct, line, col, nlines, ncols, buf) */
+        uint32_t line = cpu.d[4] & 0xFFFF, col = cpu.d[5] & 0xFFFF, nl = cpu.d[6] & 0xFFFF, nc = cpu.d[7] & 0xFFFF;
+        for (i = 0; i < nl && t < NTAB; i++)
+            for (j = 0; j < nc; j++)
+                wr32(cpu.a[0] + 4 * (i * nc + j),
+                     line + i < LCT_LINES && col + j < LCT_COLS ? lct[t][line + i][col + j] : 0x10000000);
+        break;
+    }
+    case 0x09:                                  /* dc_rdli(lct, line, col) -> instruction */
+        cpu.d[0] = t < NTAB && (cpu.d[4] & 0xFFFF) < LCT_LINES && (cpu.d[5] & 0xFFFF) < LCT_COLS
+                       ? lct[t][cpu.d[4] & 0xFFFF][cpu.d[5] & 0xFFFF] : 0x10000000;
+        break;
     case 0x04:                                  /* dc_wrfi(fct, slot, instruction) */
         if (t < NTAB && (cpu.d[4] & 0xFFFF) < FCT_SLOTS) fct[t][cpu.d[4] & 0xFFFF] = cpu.d[5];
         if (trace && ((cpu.d[5] >> 24) & 0xF8) == 0x78)
