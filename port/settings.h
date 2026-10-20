@@ -14,6 +14,7 @@ typedef struct {
     int skip_philips;   /* don't run the Philips logo program at start-up */
     int game_speed;     /* 0 = original 50 Hz (PAL), 1 = 60 Hz (NTSC pace), 2 = 75 Hz */
     int smooth_pacing;  /* show every game frame for the same number of monitor refreshes */
+    char game_folder[512];  /* where the files from your disc are, once chosen (see runtime.c) */
 } Settings;
 
 extern Settings settings;

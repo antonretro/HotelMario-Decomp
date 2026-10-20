@@ -47,12 +47,15 @@ static struct { const char *key; int *val, lo, hi; } fields[] = {
 
 void settings_load(void)
 {
-    char line[128], key[64];
+    char line[600], key[64];
     int v, i;
     FILE *f = fopen(ini, "r");
     if (!f) return;
     while (fgets(line, sizeof line, f))
-        if (sscanf(line, " %63[a-z_] = %d", key, &v) == 2)
+        if (!strncmp(line, "game_folder = ", 14)) {
+            snprintf(settings.game_folder, sizeof settings.game_folder, "%s", line + 14);
+            settings.game_folder[strcspn(settings.game_folder, "\r\n")] = 0;
+        } else if (sscanf(line, " %63[a-z_] = %d", key, &v) == 2)
             for (i = 0; i < NFIELDS; i++)
                 if (!strcmp(key, fields[i].key))
                     *fields[i].val = v < fields[i].lo ? fields[i].lo : v > fields[i].hi ? fields[i].hi : v;
@@ -66,6 +69,7 @@ void settings_save(void)
     if (!f) return;
     fprintf(f, "# Hotel Mario port options - none of these are in the original game\n");
     for (i = 0; i < NFIELDS; i++) fprintf(f, "%s = %d\n", fields[i].key, *fields[i].val);
+    if (settings.game_folder[0]) fprintf(f, "game_folder = %s\n", settings.game_folder);
     fclose(f);
 }
 

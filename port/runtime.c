@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 {
     static uint8_t datamod[0x10000];
     uint32_t off, size, memsize, params;
-    int i;
+    int i, given_root = 0;
     void f_000052(void); /* _cstart */
 
     for (i = 1; i < argc; i++) {
@@ -142,8 +142,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav_path = argv[++i];
         else if (!strcmp(argv[i], "--full-frame")) full_frame = 1;
         else if (!strcmp(argv[i], "--input") && i + 1 < argc) input_script = argv[++i];
-        else fs_root = argv[i];
+        else { fs_root = argv[i]; given_root = 1; }
     }
+    find_game_files(given_root);            /* gamefiles.c: so double-clicking hotel.exe works */
 
     /* program module at address 0, initialised data from the cdi_hotel_data module */
     program_size = (uint32_t)load_file("cdi_hotel", RAM, 0x40000);

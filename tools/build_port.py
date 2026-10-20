@@ -34,7 +34,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     srcs = sorted(glob.glob(os.path.join(ROOT, "build", "recomp", "*.c"))) + \
         sorted(glob.glob(os.path.join(ROOT, "port", "*.c"))) + musashi_sources()
-    headers = [os.path.join(ROOT, "port", h) for h in ("m68k.h", "runtime.h", "musashi_conf.h")]
+    headers = [os.path.join(ROOT, "port", h) for h in ("m68k.h", "runtime.h", "musashi_conf.h", "settings.h")]
     if not os.path.isdir(SDL):
         sys.exit("SDL2 missing: extract SDL2-devel-2.32.10-mingw.zip (libsdl-org/SDL releases) into tools/ext")
     flags = ["-O1", "-w", "-I" + os.path.join(ROOT, "port"), "-I" + MUSASHI, '-DMUSASHI_CNF="musashi_conf.h"',
@@ -46,7 +46,7 @@ def main():
             subprocess.run([GCC, "-c"] + flags + [s, "-o", o], check=True)
         objs.append(o)
     exe = os.path.join(OUT, sys.argv[1] if len(sys.argv) > 1 else "hotel.exe")  # e.g. hotel_dev.exe while one runs
-    subprocess.run([GCC] + objs + ["-L" + os.path.join(SDL, "lib"), "-lSDL2", "-o", exe], check=True)
+    subprocess.run([GCC] + objs + ["-L" + os.path.join(SDL, "lib"), "-lSDL2", "-lole32", "-lshell32", "-o", exe], check=True)
     try:
         shutil.copy(os.path.join(SDL, "bin", "SDL2.dll"), OUT)
     except PermissionError:  # a running copy of the game has it open; it is already there

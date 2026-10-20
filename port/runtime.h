@@ -13,6 +13,7 @@ extern int full_frame;                /* --full-frame: show all 280 lines, not t
 #include <stdio.h>
 #include "m68k.h"
 
+void find_game_files(int given);      /* gamefiles.c: locate the disc files, ask once if needed */
 void os9_init(void);
 extern uint8_t program_copy[];        /* the program as loaded, for checking it wasn't overwritten */
 extern uint32_t program_size;
