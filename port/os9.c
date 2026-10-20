@@ -38,9 +38,22 @@ static uint32_t sysglob;
 
 void os9_tick(void)
 {
-    if (sysglob)
-        wr32(sysglob + D_TICKS, (uint32_t)((unsigned long long)clock() * TICKS_PER_SEC / CLOCKS_PER_SEC));
+    uint32_t t = (uint32_t)((unsigned long long)clock() * TICKS_PER_SEC / CLOCKS_PER_SEC);
+    uint8_t be[4] = { (uint8_t)(t >> 24), (uint8_t)(t >> 16), (uint8_t)(t >> 8), (uint8_t)t };
+    if (sysglob) memcpy(RAM + sysglob + D_TICKS, be, 4);    /* one store: the ticker thread runs alongside */
 }
+
+/* The game also spins on the tick counter without making any system call (cd_mix waits 3 ticks inside a
+   signal handler), and recompiled code can't be interrupted, so a thread keeps the counter moving. */
+#ifdef _WIN32
+#include <process.h>
+static void ticker(void *unused)
+{
+    extern void __stdcall Sleep(unsigned long);
+    (void)unused;
+    for (;;) { os9_tick(); Sleep(2); }
+}
+#endif
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
 
 static void ok(void)            { cpu.c = 0; }
@@ -92,6 +105,9 @@ void os9_init(void)
     if (sysglob < HEAP_END) { fprintf(stderr, "system globals would overlap the heap\n"); exit(4); }
     wr32(sysglob, sysglob);
     os9_tick();
+#ifdef _WIN32
+    if (!getenv("HM_NOTICKER")) _beginthread(ticker, 0, 0);
+#endif
     paths[0].f = stdin;
     paths[1].f = stdout;
     paths[2].f = stderr;
@@ -504,7 +520,14 @@ void os9_trap(int n, uint32_t code)
             last_fn = fn;
             last_p = p;
         }
-        if (p->f && code == 0x8D && fn == 0x02) {                      /* SS_Size */
+        if (code == 0x8D && fn == 0x43) {                              /* gs_free: free bytes on the device */
+            /* A CD-i player has 8 KB of NVRAM; only Hotel Mario's own save file lives in ours (build/nvr). */
+            FILE *s = fopen("build/nvr/hotel_mario", "rb");
+            long used = 0;
+            if (s) { fseek(s, 0, SEEK_END); used = ftell(s); fclose(s); }
+            cpu.d[2] = (uint32_t)(8192 - used);
+            if (trace) fprintf(stderr, "  [os9] NVRAM free %u bytes\n", cpu.d[2]);
+        } else if (p->f && code == 0x8D && fn == 0x02) {               /* SS_Size */
             long cur = ftell(p->f);
             fseek(p->f, 0, SEEK_END);
             cpu.d[2] = (uint32_t)ftell(p->f);
@@ -517,6 +540,13 @@ void os9_trap(int n, uint32_t code)
             /* video driver: send signal d3 every field (vertical blank) - the bumper's 50 Hz tick (400) */
             field_signal = cpu.d[3] & 0xFFFF;
             if (trace) fprintf(stderr, "  [cd-i] field signal %u every frame\n", field_signal);
+        } else if (code == 0x8E && fn == 0x59 && (cpu.d[2] & 0xFFFF) == 3) {
+            /* pt_pos: d3 = x << 16 | y. The title menu re-centres the pointer to (50, 50) after each move and
+               reads the thumbpad as a joystick: past 90 is one way, under 10 the other. */
+            window_set_pointer((int)(cpu.d[3] >> 16), (int)(cpu.d[3] & 0xFFFF));
+            if (trace) fprintf(stderr, "  [input] pt_pos %u,%u\n", cpu.d[3] >> 16, cpu.d[3] & 0xFFFF);
+        } else if (code == 0x8E && fn == 0x59 && (cpu.d[2] & 0xFFFF) == 4) {
+            /* pt_org: pointer origin; the port's pointer is already in screen coordinates */
         } else if (code == 0x8D && fn == 0x59) {                       /* pointer coordinates (pt_coord) */
             /* d0.w = buttons, d1 = y << 16 | x, from the window's keyboard/gamepad state.
                --press N also simulates a button 1 press every N polls (for headless testing). */

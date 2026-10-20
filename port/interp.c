@@ -15,6 +15,7 @@
 #define SENTINEL 0xFFF000u                 /* interpreted calls return here */
 
 static int ready, running, done;
+static int nest_depth;                     /* interpreted calls running inside another (see interp_call) */
 static unsigned hook_count;
 
 /* ---- Musashi memory interface: the same big-endian RAM the recompiled code uses ---- */
@@ -175,7 +176,7 @@ void interp_hook(unsigned int pc)
         m68k_end_timeslice();
         return;
     }
-    if (isig.pending && !isig.active) {     /* a signal arrived for interpreted code */
+    if (isig.pending && !isig.active && !nest_depth) {   /* a signal arrived for interpreted code */
         start_signal(pc);
         return;
     }
@@ -188,12 +189,46 @@ void interp_hook(unsigned int pc)
     }
 }
 
+/* A nested call: interpreted code is running (a streamed module), a signal arrives, the game's
+   recompiled handler calls a routine in another streamed module. Musashi isn't re-entrant, but its whole
+   state is its context plus two cycle counters, so save those, run the inner call, and put them back:
+   the outer code then carries on exactly where it was. */
+extern int m68ki_remaining_cycles, m68ki_initial_cycles;
+
+static void interp_call_nested(uint32_t addr)
+{
+    static unsigned char ctx[2][4096];
+    int rem = m68ki_remaining_cycles, init = m68ki_initial_cycles, was_done = done;
+    unsigned char *save;
+    if (nest_depth >= 2 || m68k_context_size() > sizeof ctx[0]) {
+        fprintf(stderr, "stopped: interpreted calls nested too deep (0x%x)\n", addr);
+        exit(6);
+    }
+    save = ctx[nest_depth++];
+    m68k_get_context(save);
+    if (trace) fprintf(stderr, "  [interp] nested call 0x%x\n", addr);
+    wr16(SENTINEL, 0x4E71);
+    PUSH32(SENTINEL);
+    to_musashi();
+    m68k_set_reg(M68K_REG_PC, addr);
+    done = 0;
+    while (!done)
+        m68k_execute(200000);
+    from_musashi();                        /* results of the inner call (d0 etc.) */
+    m68k_set_context(save);                /* the outer code's registers and PC */
+    nest_depth--;
+    m68ki_remaining_cycles = rem;
+    m68ki_initial_cycles = init;
+    done = was_done;
+    if (trace) fprintf(stderr, "  [interp] back from nested 0x%x\n", addr);
+}
+
 /* Called like a jsr: the caller has NOT pushed a return address yet. */
 void interp_call(uint32_t addr)
 {
     if (running) {
-        fprintf(stderr, "stopped: nested interpreted call to 0x%x\n", addr);
-        exit(6);
+        interp_call_nested(addr);
+        return;
     }
     if (!ready) {
         m68k_init();

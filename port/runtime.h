@@ -48,6 +48,8 @@ extern unsigned dump_at_ms, dump_every_ms;
 void window_init(void);
 void window_tick(void);               /* called often; redraws ~50 times a second, reads input */
 void window_pointer(int *x, int *y, int *buttons);
+void window_set_pointer(int x, int y);  /* pt_pos */
+extern const char *input_script;      /* --input "ms:action,...": scripted input for headless tests */
 void window_sleep(int ms);
 
 /* audio.c - streamed CD-i ADPCM audio through SDL */

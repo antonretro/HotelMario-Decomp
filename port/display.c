@@ -102,13 +102,21 @@ void display_restore_tables(void)
 
 void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
 {
-    int i;
+    int i, me = -1;
     for (i = 0; i < NREGION; i++)
-        if (regions[i].start == buf) { regions[i].len = bytes; regions[i].fmt = fmt; return; }
-    regions[region_next].start = buf;
-    regions[region_next].len = bytes;
-    regions[region_next].fmt = fmt;
-    region_next = (region_next + 1) % NREGION;
+        if (regions[i].start == buf && regions[i].len) me = i;
+    if (me < 0) {
+        me = region_next;
+        region_next = (region_next + 1) % NREGION;
+    }
+    regions[me].start = buf;
+    regions[me].len = bytes;
+    regions[me].fmt = fmt;
+    /* Memory gets reused: forget older streams this one now overlaps, or a stale shorter one would cut the
+       new picture off early (region_end) or give it the wrong format (is_run_length). */
+    for (i = 0; i < NREGION; i++)
+        if (i != me && regions[i].len && regions[i].start < buf + bytes && buf < regions[i].start + regions[i].len)
+            regions[i].len = 0;
 }
 
 /* End of the streamed picture data that addr lies in (0 = not streamed video, no limit known) */

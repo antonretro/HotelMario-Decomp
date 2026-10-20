@@ -9,6 +9,8 @@
 #include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "m68k.h"
 #include "runtime.h"
@@ -128,10 +130,53 @@ void window_sleep(int ms)
     SDL_Delay((Uint32)ms);
 }
 
+void window_set_pointer(int x, int y)
+{
+    ptr_x = x < 0 ? 0 : x >= W ? W - 1 : x;
+    ptr_y = y < 0 ? 0 : y >= H ? H - 1 : y;
+}
+
+/* --input "ms:action,...": at each time (ms since start) do one action. up/down/left/right nudge the pointer
+   60 pixels once (one menu step: the game re-centres it), b1/b2 hold a button for 200 ms. */
+const char *input_script;
+
+static int script_buttons(void)
+{
+    static int next_event;     /* index of the next action to apply */
+    unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
+    const char *p = input_script;
+    int i = 0, held = 0;
+    while (p && *p) {
+        unsigned long t = strtoul(p, (char **)&p, 10);
+        char act[8] = { 0 };
+        int n = 0;
+        if (*p == ':') p++;
+        while (*p && *p != ',' && n < 7) act[n++] = *p++;
+        if (*p == ',') p++;
+        if (now >= t && i >= next_event) {        /* one-shot pointer nudges, once each */
+            if (!strcmp(act, "up")) ptr_y -= 60;
+            else if (!strcmp(act, "down")) ptr_y += 60;
+            else if (!strcmp(act, "left")) ptr_x -= 60;
+            else if (!strcmp(act, "right")) ptr_x += 60;
+            next_event = i + 1;
+            if (trace) fprintf(stderr, "  [input] %s at %lu ms\n", act, now);
+        }
+        if (now >= t && now < t + 200) {         /* buttons are held for 200 ms */
+            if (!strcmp(act, "b1")) held |= 1;
+            if (!strcmp(act, "b2")) held |= 2;
+        }
+        i++;
+    }
+    window_set_pointer(ptr_x, ptr_y);
+    return held;
+}
+
 void window_pointer(int *x, int *y, int *buttons)
 {
+    int scripted;
     window_tick();
+    scripted = input_script ? script_buttons() : 0;
     *x = ptr_x;
     *y = ptr_y;
-    *buttons = ptr_buttons;
+    *buttons = ptr_buttons | scripted;
 }
