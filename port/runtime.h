@@ -19,6 +19,13 @@ extern uint8_t program_copy[];        /* the program as loaded, for checking it 
 extern uint32_t program_size;
 void os9_tick(void);               /* update the tick counter in the system globals */
 #include <time.h>
+#ifdef __3DS__
+/* The 3DS C library's clock() isn't wall time; use milliseconds from the system clock (3ds/window3ds.c). */
+#undef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 1000
+clock_t port_clock(void);
+#define clock() port_clock()
+#endif
 clock_t game_clock(void);          /* real time minus main-loop stalls (window drags, the settings menu) */
 void game_heartbeat(void);
 RecompFn recomp_lookup(uint32_t addr);
@@ -60,6 +67,7 @@ void window_tick(void);               /* called often; redraws ~50 times a secon
 void window_pointer(int *x, int *y, int *buttons);
 void window_set_pointer(int x, int y);  /* pt_pos */
 extern const char *input_script;      /* --input "ms:action,...": scripted input for headless tests */
+int script_buttons(int *ptr_x, int *ptr_y);   /* inputscript.c: apply it; returns buttons held */
 void window_sleep(int ms);
 int window_refreshes_per_field(void); /* locked pacing: monitor refreshes per game field, 0 = off */
 unsigned long window_refresh_count(void);

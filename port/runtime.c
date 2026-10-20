@@ -132,6 +132,23 @@ int main(int argc, char **argv)
     int i, given_root = 0;
     void f_000052(void); /* _cstart */
 
+#ifdef __3DS__
+    {   /* no command line on the 3DS: test options (--dump-every, --input, ...) can come from args.txt */
+        static char text[4096], *av[64];
+        FILE *f = fopen("sdmc:/3ds/HotelMario/args.txt", "r");
+        if (f) {
+            size_t n = fread(text, 1, sizeof text - 1, f);
+            char *p = text;
+            fclose(f);
+            text[n] = 0;
+            argc = 0;
+            av[argc++] = "HotelMario";
+            for (p = strtok(text, " \r\n\t"); p && argc < 63; p = strtok(0, " \r\n\t")) av[argc++] = p;
+            argv = av;
+            if (freopen("sdmc:/3ds/HotelMario/log.txt", "w", stderr)) setvbuf(stderr, 0, _IOLBF, 0);
+        }
+    }
+#endif
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--trace")) trace = 1;
         else if (!strcmp(argv[i], "--watch") && i + 1 < argc) watch_pc = (uint32_t)strtoul(argv[++i], 0, 16);

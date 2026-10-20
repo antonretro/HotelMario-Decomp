@@ -5,7 +5,12 @@
  * carry set + d1 = error code on failure. Files on the disc are read from fs_root (your extracted
  * disc), NVRAM saves go to saves/ (the player's NVRAM, created when needed). Unknown calls stop the program so they can be added.
  */
+#ifdef _WIN32
 #include <direct.h>
+#else
+#include <sys/stat.h>
+#define _mkdir(p) mkdir(p, 0777)
+#endif
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,6 +149,18 @@ static void ticker(void *unused)
     }
 }
 #endif
+#ifdef __3DS__
+#include <3ds.h>
+/* Same job on the 3DS: a thread at a higher priority than the game, so it runs even while the game spins. */
+static void ticker(void *unused)
+{
+    (void)unused;
+    for (;;) {
+        os9_tick();
+        svcSleepThread(2000000LL);
+    }
+}
+#endif
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
 static int nvr_errno_check;          /* debug: report errno after a failed save open */
 
@@ -202,6 +219,13 @@ void os9_init(void)
 #ifdef _WIN32
     if (!getenv("HM_NOTICKER")) _beginthread(ticker, 0, 0);
 #endif
+#ifdef __3DS__
+    {
+        s32 prio = 0x30;
+        svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+        threadCreate(ticker, 0, 4096, prio - 1, -1, true);
+    }
+#endif
     _mkdir("saves");                     /* the NVRAM: hotel_mario holds the high scores and saved games */
     paths[0].f = stdin;
     paths[1].f = stdout;
@@ -249,9 +273,13 @@ static void io_open(int create)
        Types the game asks for: 1 pointer, 2 audio, 3 video, 4 NVRAM, 11 second input device. */
     if (!strcmp(name, "/csd") || !strcmp(name, "/nvr/csd")) {
         static const char csd[] = "1:/ptr:\r2:/snd:\r3:/vid:\r4:/nvr:\r11:/ptr2:\r";
+#ifdef __3DS__
+        paths[p].f = fmemopen((void *)csd, sizeof csd - 1, "r");   /* no temporary files on the 3DS */
+#else
         paths[p].f = tmpfile();
         fwrite(csd, 1, sizeof csd - 1, paths[p].f);
         rewind(paths[p].f);
+#endif
         strcpy(paths[p].name, name);
         if (trace) fprintf(stderr, "  [os9] open /csd -> %d (virtual)\n", p);
         cpu.d[0] = (uint32_t)p;

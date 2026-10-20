@@ -23,9 +23,20 @@ static unsigned hook_count;
 unsigned int m68k_read_memory_8(unsigned int a)  { return rd8(a); }
 unsigned int m68k_read_memory_16(unsigned int a) { return rd16(a); }
 unsigned int m68k_read_memory_32(unsigned int a) { return rd32(a); }
-void m68k_write_memory_8(unsigned int a, unsigned int v)  { wr8(a, v); }
-void m68k_write_memory_16(unsigned int a, unsigned int v) { wr16(a, v); }
-void m68k_write_memory_32(unsigned int a, unsigned int v) { wr32(a, v); }
+/* Nothing may write into cdi_hotel's own code (address 0 up to its size). An intermittent crash after the
+   Philips logo program exits showed the code overwritten from 0x92 on: report the first such write. */
+static void code_write(unsigned int a, unsigned int v, int size)
+{
+    static int reported;
+    if ((a & RAM_MASK) >= program_size || reported) return;
+    reported = 1;
+    fprintf(stderr, "  [interp] write of %x (%d bytes) into the program at 0x%x, pc 0x%x, a7 0x%x\n", v, size, a,
+            m68k_get_reg(NULL, M68K_REG_PPC), m68k_get_reg(NULL, M68K_REG_A7));
+    interp_dump_history();
+}
+void m68k_write_memory_8(unsigned int a, unsigned int v)  { code_write(a, v, 1); wr8(a, v); }
+void m68k_write_memory_16(unsigned int a, unsigned int v) { code_write(a, v, 2); wr16(a, v); }
+void m68k_write_memory_32(unsigned int a, unsigned int v) { code_write(a, v, 4); wr32(a, v); }
 unsigned int m68k_read_disassembler_8(unsigned int a)  { return rd8(a); }
 unsigned int m68k_read_disassembler_16(unsigned int a) { return rd16(a); }
 unsigned int m68k_read_disassembler_32(unsigned int a) { return rd32(a); }

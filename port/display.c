@@ -327,10 +327,25 @@ void display_setstt(void)
 
 /* ---------------- drawing ---------------- */
 
+/* YUV -> RGB with the chroma terms from tables: the 3DS's ARM11 has no divide instruction, and three
+   divisions per pixel made full-colour pictures slow. Same integer results as the formulas in the tables. */
+static int t_rv[256], t_bu[256], t_ready;
+static int16_t t_g[65536];          /* (336 * (u - 128) + 698 * (v - 128)) / 1000, by u << 8 | v */
+
+static void yuv_tables(void)
+{
+    int i, j;
+    for (i = 0; i < 256; i++) {
+        t_rv[i] = (1371 * (i - 128)) / 1000;
+        t_bu[i] = (1733 * (i - 128)) / 1000;
+        for (j = 0; j < 256; j++) t_g[i << 8 | j] = (int16_t)((336 * (i - 128) + 698 * (j - 128)) / 1000);
+    }
+    t_ready = 1;
+}
+
 static uint32_t yuv(int y, int u, int v)
 {
-    int r = y + (1371 * (v - 128)) / 1000, g = y - (336 * (u - 128) + 698 * (v - 128)) / 1000,
-        b = y + (1733 * (u - 128)) / 1000;
+    int r = y + t_rv[v], g = y - t_g[u << 8 | v], b = y + t_bu[u];
     r = r < 0 ? 0 : r > 255 ? 255 : r;
     g = g < 0 ? 0 : g > 255 ? 255 : g;
     b = b < 0 ? 0 : b > 255 ? 255 : b;
@@ -404,23 +419,23 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
     {
         uint32_t cond = vs.transp_set ? (vs.transp_ctl >> (p ? 8 : 0)) & 0xF : 8;   /* not set up yet: opaque */
         uint32_t care = ~vs.mask[p] & 0xFCFCFC, key = vs.transp[p] & care;
-        for (x = 0; x < W; x++) {
-            int t;
-            switch (cond & 7) {
-            case 0: t = 1; break;
-            case 1: case 5: case 6: t = (rgb[x] & care) == key; break;
-            default: t = 0; break;
-            }
-            if (cond & 8) t = !t;
-            opaque[x] = !t;
+        int keyed = (cond & 7) == 1 || (cond & 7) == 5 || (cond & 7) == 6, inv = (cond & 8) != 0;
+        if (!keyed) {                                   /* always (0) or never (other) transparent */
+            memset(opaque, ((cond & 7) == 0) == inv, W);
+        } else {
+            for (x = 0; x < W; x++) opaque[x] = ((rgb[x] & care) == key) == inv;
         }
     }
-    for (x = 0; x < W; x++) {
-        uint32_t c = rgb[x];
-        if (icf < 63) {                                 /* brightness (fades): scale by icf/63 */
-            uint32_t r = ((c >> 16) & 255) * (uint32_t)icf / 63, g = ((c >> 8) & 255) * (uint32_t)icf / 63,
-                     b = (c & 255) * (uint32_t)icf / 63;
-            rgb[x] = r << 16 | g << 8 | b;
+    if (icf < 63) {                                     /* brightness (fades): scale by icf/63, from a table */
+        static uint8_t scale[256];
+        static int scale_icf = -1;
+        if (scale_icf != icf) {
+            for (x = 0; x < 256; x++) scale[x] = (uint8_t)((uint32_t)x * (uint32_t)icf / 63);
+            scale_icf = icf;
+        }
+        for (x = 0; x < W; x++) {
+            uint32_t c = rgb[x];
+            rgb[x] = (uint32_t)scale[(c >> 16) & 255] << 16 | (uint32_t)scale[(c >> 8) & 255] << 8 | scale[c & 255];
         }
     }
     if (used) return used;
@@ -431,7 +446,10 @@ static void run_fct(int p)
 {
     int i, t = active_fct[p];
     if (t < 0) return;
-    for (i = 0; i < FCT_SLOTS; i++) instr(fct[t][i], p);
+    for (i = 0; i < FCT_SLOTS; i++) {
+        if ((fct[t][i] >> 24) != 0x10) instr(fct[t][i], p);
+        else seen[0x10]++;
+    }
 }
 
 /* Compose both planes over the backdrop into out[] (0x00RRGGBB, 384x280). */
@@ -479,8 +497,13 @@ void display_render(uint32_t *out)
             }
         }
     }
-    if (getenv("HM_FCT_BA")) { run_fct(1); run_fct(0); }
-    else { run_fct(0); run_fct(1); }
+    {
+        static int ba = -1;
+        if (ba < 0) ba = getenv("HM_FCT_BA") != 0;
+        if (!t_ready) yuv_tables();
+        if (ba) { run_fct(1); run_fct(0); }
+        else { run_fct(0); run_fct(1); }
+    }
     if (trace) {                                 /* log each change of the transparency set-up */
         static uint32_t last[5];
         uint32_t now[5] = { vs.transp_ctl, vs.transp[0], vs.transp[1], vs.mask[0], vs.mask[1] };
@@ -491,12 +514,21 @@ void display_render(uint32_t *out)
         }
     }
     plane_rl[0] = plane_rl[1] = 0;
+#ifdef __3DS__
+    /* The 3DS shows lines 2-241 only (the TV crop): don't draw what can't be seen */
+    for (y = 0; y < 242; y++) {
+#else
     for (y = 0; y < H; y++) {
+#endif
         uint32_t used[2];
         for (p = 0; p < 2; p++) {
             uint32_t before = vs.line_addr[p];
             if (active_lct[p] >= 0 && y < LCT_LINES)
-                for (c = 0; c < LCT_COLS; c++) instr(lct[active_lct[p]][y][c], p);
+                for (c = 0; c < LCT_COLS; c++) {
+                    uint32_t v = lct[active_lct[p]][y][c];
+                    if ((v >> 24) != 0x10) instr(v, p);        /* most slots are "no operation" */
+                    else seen[0x10]++;
+                }
             if (vs.line_addr[p] != before || y == 0) { /* new display start: check what data it shows */
                 plane_rl[p] = is_run_length(vs.line_addr[p]);
                 /* Only a run-length picture stops at the end of its stream (the Philips logo's 240-line

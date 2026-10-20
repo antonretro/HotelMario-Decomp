@@ -253,6 +253,13 @@ static void feed_sector(void)
         int size = (sm & 0x04) ? 2304 : (sm & 0x20) ? 2324 : 2048;
         uint32_t cnt = rd32(pcl + 0x18), buf = rd32(pcl + 0x0a), bsz = rd32(pcl + 0x0e);
         uint32_t at = cnt ? fill_offset(pcl) : 0;   /* sectors are packed back to back, whatever their form */
+        if (buf && ((buf + at) & RAM_MASK) < program_size) {   /* a stale list pointing into the program */
+            static int told;
+            if (!told++)
+                fprintf(stderr, "  [cd-i] sector %ld ch%d not written: buffer %x + %x is inside the program "
+                        "(pcl %x, list %x, pcb %x)\n", play.sector - 1, ch, buf, at, pcl, list, pcb);
+            buf = 0;
+        }
         if (buf) memcpy(RAM + ((buf + at) & RAM_MASK), s + 24, size);
         set_fill_offset(pcl, at + size);
         if (buf && (sm & 0x02))                   /* tell the display what format this video data is in */
