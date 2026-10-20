@@ -87,6 +87,20 @@ static void ticker(void *unused)
                 at = -1;
             }
         }
+        {   /* HM_POKE=ms:addr=value (hex addr/value): once at that time, write a 16-bit word - for tests, e.g.
+               0x20057a=0 (the open-door count) wins the stage, to reach the ending without playing */
+            static long at = -2;
+            static uint32_t addr, val;
+            if (at == -2) {
+                const char *s = getenv("HM_POKE");
+                at = s && sscanf(s, "%ld:%x=%x", &at, &addr, &val) == 3 ? at : -1;
+            }
+            if (at >= 0 && (long)(clock() * 1000 / CLOCKS_PER_SEC) >= at) {
+                wr16(addr, val);
+                fprintf(stderr, "  [poke] %06x = %04x\n", addr, val);
+                at = -1;
+            }
+        }
         if (gamelog) {     /* debug: the input fields the game stores ([470] buttons, [478] x, [480] y) */
             uint32_t g = 0x200050, pl = rd32(g + 0x250);
             uint32_t now[4] = { rd32(g + 0x470), rd32(g + 0x478), rd32(g + 0x480), rd16(pl + 0x10e) };
