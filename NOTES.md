@@ -157,6 +157,24 @@ had it the other way round, so nothing was heard. With the fix:
   it. The port doesn't emulate sound maps yet.
 - `--wav <file>` records everything played (44.1 kHz stereo), also with `--headless`.
 
+### Controls, menus and gameplay (2026-10-20)
+- **Pointer = joystick.** The CD-i thumbpad moves a pointer in a 768x560 space. The game parks it with
+  `pt_pos` and reads movement with `pt_coord`: the title menu centres it at (383, 100) and counts y past
+  150 / under 50 as a step; gameplay centres it at (383, 234), and each read (every 3rd frame) turns
+  "x moved" into a direction code in the x field (1 = left, 2 = right) that Mario's logic uses until the
+  next read. `pt_coord` returns **x in the high word, y in the low word** (the clib binding stores the low
+  word through the y pointer). Swapped, the menu always fell through to DEMO.
+- **sprintf.** The recompiled C-library formatting (printf/fprintf/sprintf, hand-written 68000 with jump
+  tables) dropped every conversion: `sprintf("L%d_am.rtf", 1)` gave `Ld_am.rtf`, so a new game couldn't open
+  its level and showed YOUR DISC MAY BE DIRTY. Those three run on the interpreter for now; the recompiler
+  bug itself is still to find.
+- **NVRAM.** `gs_free` (GetStt 0x43) must report free space (8 KB minus the save file), or the game says
+  the player's memory is full.
+- **Nested modules.** A signal handler can call into one streamed module while another is running on the
+  interpreter; Musashi's context is saved and restored around the inner call.
+- **Frame timing.** The window shows a new picture only after the game finishes one (it waits for the
+  next field); drawn at other moments it caught sprites half erased.
+
 ### Debugging aids
 - `--dump-every <ms>` writes `build/port/frames/<ms>.rgb` plus `_A`/`_B` (each plane alone);
   `python -I tools/contact_sheet.py [out.png] [cols] [_A|_B]` makes a timeline sheet.
