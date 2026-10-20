@@ -13,6 +13,7 @@
 
 #include "m68k.h"
 #include "runtime.h"
+#include "settings.h"
 
 #define E_PNNF 0xD8   /* path name not found */
 #define E_MNF  0xDD   /* module not found */
@@ -290,6 +291,12 @@ static void fork_child(void)
     Cpu parent = cpu;
     int i;
     cstring(cpu.a[0], name, sizeof name);
+    if (settings.skip_philips && !strcmp(name, "cdi_bumper")) {   /* port option, off by default */
+        fprintf(stderr, "  [os9] fork %s: skipped (settings: skip Philips logo)\n", name);
+        cpu.d[0] = 3;
+        ok();
+        return;
+    }
     for (i = nmods - 1; i >= 0 && !m; i--)                 /* by name... */
         if (!strcmp(mods[i].name, name)) m = mods[i].addr;
     for (i = nmods - 1; i >= 0 && !m; i--)                 /* ...else the last program module loaded */

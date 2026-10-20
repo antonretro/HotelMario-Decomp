@@ -25,6 +25,7 @@
 
 #include "m68k.h"
 #include "runtime.h"
+#include "settings.h"
 
 #define W 384
 #define H 280
@@ -98,6 +99,14 @@ void display_restore_tables(void)
     saved_valid = 0;
     if (trace) fprintf(stderr, "  [dcp] parent display state restored: FCT %d/%d LCT %d/%d\n",
                        active_fct[0], active_fct[1], active_lct[0], active_lct[1]);
+}
+
+/* A new disc play starts: forget the pictures earlier plays streamed. The game reuses that memory for
+   pictures it draws itself (the stage's sprite layer sits where a cutscene once streamed), and a stale
+   record made the renderer stop that layer early on alternate frames - the sprites flickered. */
+void display_forget_video(void)
+{
+    memset(regions, 0, sizeof regions);
 }
 
 void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
@@ -227,6 +236,21 @@ void display_setstt(void)
         }
         break;
     case 0x02:                                  /* dc_wrfct(fct, start, count, buf) */
+        if (trace && t == 2 && (cpu.d[4] & 0xFFFF) == 32) {
+            int k;
+            fprintf(stderr, "  [dcp] jump table player_clut_change -> %04x %08x; return address %08x\n",
+                    rd16(0x108000 - 0x5a48), rd32(0x108000 - 0x5a48 + 2), rd32(cpu.a[7] + 12));
+            fprintf(stderr, "  [dcp] planeB_Colors now:");
+            for (k = 0; k < 60; k += 6)
+                fprintf(stderr, " %02x%02x%02x", rd8(0x1018ec + k + 1), rd8(0x1018ec + k + 3), rd8(0x1018ec + k + 5));
+            fprintf(stderr, "\n");
+        }
+        if (trace && t == 2 && (cpu.d[4] & 0xFFFF) <= 32 && (cpu.d[4] & 0xFFFF) + (cpu.d[5] & 0xFFFF) > 32)
+            fprintf(stderr, "  [dcp] FCT 2 slot 32 <- %08x (write of %u slots from %u) at %lu ms; game[596]=%d, "
+                    "game[1c*596+7b0]=%d, a2=%x a6=%x\n",
+                    rd32(cpu.a[0] + 4 * (32 - (cpu.d[4] & 0xFFFF))), cpu.d[5] & 0xFFFF, cpu.d[4] & 0xFFFF,
+                    (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC), (int16_t)rd16(0x200050 + 0x596),
+                    (int16_t)rd16(0x200050 + 0x1c * (int16_t)rd16(0x200050 + 0x596) + 0x7b0), cpu.a[2], cpu.a[6]);
         for (i = 0; i < (cpu.d[5] & 0xFFFF) && t < NTAB; i++)
             if ((cpu.d[4] & 0xFFFF) + i < FCT_SLOTS) {
                 fct[t][(cpu.d[4] & 0xFFFF) + i] = rd32(cpu.a[0] + 4 * i);
@@ -415,8 +439,26 @@ void display_render(uint32_t *out)
             }
         }
     }
-    run_fct(0);
-    run_fct(1);
+    if (trace && getenv("HM_FCTDUMP")) {         /* once, after the given ms: both field tables */
+        static int dumped;
+        if (!dumped && (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC) >= (unsigned long)atol(getenv("HM_FCTDUMP"))) {
+            int pl, sl;
+            dumped = 1;
+            fprintf(stderr, "  [fct] planeB_Colors in memory:");
+            for (sl = 0; sl < 0x3c * 2; sl += 6)
+                fprintf(stderr, " %02x%02x%02x", rd8(0x1018ec + sl + 1), rd8(0x1018ec + sl + 3), rd8(0x1018ec + sl + 5));
+            fprintf(stderr, "\n");
+            for (pl = 0; pl < 2; pl++) {
+                if (active_fct[pl] < 0) continue;
+                fprintf(stderr, "  [fct] plane %c FCT %d (bank now %u):\n", 'A' + pl, active_fct[pl], vs.bank);
+                for (sl = 0; sl < FCT_SLOTS; sl++)
+                    if ((fct[active_fct[pl]][sl] >> 24) != 0x10)
+                        fprintf(stderr, "    slot %3d: %08x\n", sl, fct[active_fct[pl]][sl]);
+            }
+        }
+    }
+    if (getenv("HM_FCT_BA")) { run_fct(1); run_fct(0); }
+    else { run_fct(0); run_fct(1); }
     if (trace) {                                 /* log each change of the transparency set-up */
         static uint32_t last[5];
         uint32_t now[5] = { vs.transp_ctl, vs.transp[0], vs.transp[1], vs.mask[0], vs.mask[1] };
@@ -521,6 +563,16 @@ void display_maybe_dump(void)
                     fputc((int)f[i] & 255, o);
                 }
                 fclose(o);
+            }
+        }
+        if (getenv("HM_SETTINGS_PREVIEW")) {      /* debug: the settings menu drawn over this frame */
+            FILE *o2 = fopen("build/port/settings_preview.rgb", "wb");
+            int i;
+            display_render(f);
+            settings_draw(f, W, H, 2);
+            if (o2) {
+                for (i = 0; i < W * H; i++) { fputc((int)(f[i] >> 16) & 255, o2); fputc((int)(f[i] >> 8) & 255, o2); fputc((int)f[i] & 255, o2); }
+                fclose(o2);
             }
         }
         if (trace) fprintf(stderr, "  [dump] timeline frame %lu ms (A %06x coding %x / B %06x coding %x)\n",

@@ -169,8 +169,13 @@ class Func:
                 out.append(d.write(v))
                 out.append(f"f_nz({v}, {sz});")
         elif base == "moveq":
+            # The 8-bit immediate is sign-extended to 32 bits: moveq #$ff,d1 is d1 = -1. (Capstone reports it
+            # as 0xff; using that as-is made every negative moveq positive - e.g. player_clut_change(-1) read
+            # row 255 of its colour table and drew Mario's clothes black.)
             d = ea(1)
-            out.append(f"{d.r} = 0x{ops[0].imm & 0xFFFFFFFF:x}u; f_nz({d.r}, 4);")
+            v = ops[0].imm & 0xFF
+            v = v | 0xFFFFFF00 if v & 0x80 else v
+            out.append(f"{d.r} = 0x{v:x}u; f_nz({d.r}, 4);")
         elif base == "lea":
             s = EA(i, ops[0], 4, 0)
             out.extend(s.pre)

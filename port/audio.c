@@ -13,6 +13,7 @@
 #define OUT_RATE 44100
 
 static SDL_AudioDeviceID dev;
+static int volume = 10;     /* 0-10, from the settings menu */
 const char *wav_path;          /* --wav <file>: also write everything played (44.1 kHz stereo) to a WAV file */
 static FILE *wav;
 static uint32_t wav_bytes;
@@ -109,12 +110,21 @@ void audio_sector(const uint8_t *payload, int coding)
         while ((got = SDL_AudioStreamGet(stream, buf, sizeof buf)) > 0) {
             if (wav) { fwrite(buf, 1, (size_t)got, wav); wav_bytes += (uint32_t)got; wav_header(); }
             if (!dev) continue;
+            if (volume < 10) {                     /* the settings menu's volume (the WAV stays full level) */
+                int16_t *s = (int16_t *)buf;
+                int i;
+                for (i = 0; i < got / 2; i++) s[i] = (int16_t)(s[i] * volume / 10);
+            }
             /* keep latency bounded: if more than half a second is waiting, drop the oldest */
             if (SDL_GetQueuedAudioSize(dev) > OUT_RATE * 4 / 2) SDL_ClearQueuedAudio(dev);
             SDL_QueueAudio(dev, buf, (Uint32)got);
         }
     }
 }
+
+void audio_set_volume(int v) { volume = v < 0 ? 0 : v > 10 ? 10 : v; }
+
+void audio_pause(int paused) { if (dev) SDL_PauseAudioDevice(dev, paused); }
 
 void audio_stop(void)   /* playback ended or was aborted: silence what is still queued */
 {

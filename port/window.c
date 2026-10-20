@@ -2,8 +2,9 @@
  * window.c - SDL2 window for the port: shows the emulated CD-i display ~50 times a second and turns
  * keyboard / gamepad input into the CD-i pointer (thumbpad + 2 buttons) the game reads with pt_coord.
  *
- * Keys: arrows = move, Z or Space = button 1, X or Enter = button 2, F12 = save frame (debug), Esc = quit.
- * Gamepad: left stick / d-pad = move, A = button 1, B = button 2.
+ * Keys: arrows = move, Z or Space = button 1, X or Enter = button 2, F1 = settings, F11 = fullscreen,
+ * F12 = save frame (debug), Esc = quit.
+ * Gamepad: left stick / d-pad = move, A = button 1, B = button 2, Back/Select = settings.
  */
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
@@ -14,17 +15,17 @@
 
 #include "m68k.h"
 #include "runtime.h"
+#include "settings.h"
 
 #define W 384
 #define H 280
-#define SCALE 2
 
-/* The visible area, like a TV's overscan. The player puts out 280 lines (PAL), but the game switches its
-   pictures on at line 2 and they run out after ~262 lines; below that the chip shows whatever memory follows
-   the picture, which a TV hid behind its bezel. Show lines 2-261; --full-frame shows all 280. */
-#define VIS_TOP 2
-#define VIS_H   260
+/* The visible area. The player puts out 280 lines (PAL), but the game switches its pictures on at line 2 and
+   they run out after ~262 lines (below that the chip shows whatever memory follows), and a TV's bezel hid
+   more still. settings.tv_crop: 0 = all 280 lines, 1 = edges only (2-261), 2 = like a TV (14-253, the
+   default). --full-frame shows all 280 whatever the setting. */
 int full_frame;
+static int vis_top = 14, vis_h = 240;
 
 static SDL_Window *win;
 static SDL_Renderer *ren;
@@ -40,8 +41,37 @@ static int refresh_hz = 60;
 static int ptr_x = PTR_W / 2, ptr_y = PTR_H / 2, ptr_buttons;
 int headless;
 
+static int cli_full_frame;   /* --full-frame given: always show all 280 lines */
+
+/* Apply the port options (settings.c) to the window. */
+static void apply_settings(int resize)
+{
+    SDL_DisplayMode mode;
+    int vh;
+    full_frame = cli_full_frame || !settings.tv_crop;
+    vis_top = full_frame ? 0 : settings.tv_crop == 1 ? 2 : 14;
+    vis_h = full_frame ? H : settings.tv_crop == 1 ? 260 : 240;
+    vh = vis_h;
+    SDL_SetWindowFullscreen(win, settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+    if (resize && !settings.fullscreen) {
+        SDL_SetWindowSize(win, W * settings.scale, vh * settings.scale);
+        SDL_SetWindowPosition(win, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
+    SDL_RenderSetLogicalSize(ren, W, vh);
+    SDL_SetTextureScaleMode(tex, settings.smooth ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
+    /* redraw at the monitor's refresh rate (60 Hz or more), or 50 Hz like the PAL player; the game itself
+       always keeps its 50 Hz timing */
+    refresh_hz = 50;
+    if (settings.monitor_rate && SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(win), &mode) == 0 &&
+        mode.refresh_rate >= 50)
+        refresh_hz = mode.refresh_rate;
+    audio_set_volume(settings.volume);
+}
+
 void window_init(void)
 {
+    settings_load();
+    cli_full_frame = full_frame;
     if (headless) { audio_init(); return; }    /* no device, but --wav still records */
     SDL_SetMainReady();
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
@@ -49,18 +79,71 @@ void window_init(void)
         headless = 1;
         return;
     }
-    win = SDL_CreateWindow("Hotel Mario (CD-i) - decomp port", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                           W * SCALE, (full_frame ? H : VIS_H) * SCALE, SDL_WINDOW_RESIZABLE);
+    win = SDL_CreateWindow("Hotel Mario (CD-i) - decomp port  [F1: settings]", SDL_WINDOWPOS_CENTERED,
+                           SDL_WINDOWPOS_CENTERED, W * settings.scale, 240 * settings.scale, SDL_WINDOW_RESIZABLE);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_RenderSetLogicalSize(ren, W * SCALE, (full_frame ? H : VIS_H) * SCALE);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
-    {   /* redraw at the monitor's refresh rate (60 Hz or more); the game itself keeps its 50 Hz PAL timing */
-        SDL_DisplayMode mode;
-        if (SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(win), &mode) == 0 && mode.refresh_rate >= 50)
-            refresh_hz = mode.refresh_rate;
-        fprintf(stderr, "window redraws at %d Hz\n", refresh_hz);
-    }
     audio_init();
+    apply_settings(1);
+    fprintf(stderr, "window redraws at %d Hz\n", refresh_hz);
+}
+
+static void present(const uint32_t *fb)
+{
+    SDL_Rect vis = { 0, vis_top, W, vis_h };
+    SDL_UpdateTexture(tex, 0, fb, W * 4);
+    SDL_RenderClear(ren);
+    SDL_RenderCopy(ren, tex, &vis, 0);
+    SDL_RenderPresent(ren);
+}
+
+/* The settings menu: the game is paused (nothing returns to it) until the menu closes. */
+static void settings_menu(void)
+{
+    static uint32_t fb[W * H];
+    int open = 1, axis_held = 0;
+    audio_pause(1);
+    settings_cursor = 0;
+    while (open) {
+        SDL_Event e;
+        int d = 0, move = 0;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) { settings_save(); exit(0); }
+            if (e.type == SDL_KEYDOWN) {
+                switch (e.key.keysym.sym) {
+                case SDLK_F1: case SDLK_ESCAPE: open = 0; break;
+                case SDLK_UP: move = -1; break;
+                case SDLK_DOWN: move = 1; break;
+                case SDLK_LEFT: d = -1; break;
+                case SDLK_RIGHT: case SDLK_RETURN: case SDLK_SPACE: d = 1; break;
+                }
+            }
+            if (e.type == SDL_CONTROLLERBUTTONDOWN) {
+                switch (e.cbutton.button) {
+                case SDL_CONTROLLER_BUTTON_BACK: case SDL_CONTROLLER_BUTTON_START: case SDL_CONTROLLER_BUTTON_B:
+                    open = 0; break;
+                case SDL_CONTROLLER_BUTTON_DPAD_UP: move = -1; break;
+                case SDL_CONTROLLER_BUTTON_DPAD_DOWN: move = 1; break;
+                case SDL_CONTROLLER_BUTTON_DPAD_LEFT: d = -1; break;
+                case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: case SDL_CONTROLLER_BUTTON_A: d = 1; break;
+                }
+            }
+        }
+        if (pad) {                                  /* the left stick, one step per push */
+            int ay = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
+            if (!axis_held && (ay < -16000 || ay > 16000)) { move = ay < 0 ? -1 : 1; axis_held = 1; }
+            if (ay > -8000 && ay < 8000) axis_held = 0;
+        }
+        if (move) settings_cursor = (settings_cursor + move + settings_count()) % settings_count();
+        if (d && settings_change(d)) apply_settings(1);
+        memcpy(fb, frame, sizeof fb);
+        settings_draw(fb, W, H, vis_top);
+        present(fb);
+        SDL_Delay(16);
+    }
+    settings_save();
+    audio_pause(0);
+    next_frame = 0;
 }
 
 static void read_input(void)
@@ -74,6 +157,16 @@ static void read_input(void)
             exit(0);
         }
         if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
+        if ((e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F1) ||
+            (e.type == SDL_CONTROLLERBUTTONDOWN && e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK)) {
+            settings_menu();
+            return;
+        }
+        if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F11) {   /* quick fullscreen toggle */
+            settings.fullscreen = !settings.fullscreen;
+            apply_settings(1);
+            settings_save();
+        }
         if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12) {   /* save the frame for debugging */
             dump_at_ms = 1;
             display_maybe_dump();
@@ -115,17 +208,9 @@ void window_tick(void)
     {   /* draw a new picture only when the game has finished one; otherwise show the last one again */
         static unsigned seen;
         static unsigned long last_ms;
-        if (display_frame_due(&seen, &last_ms)) {
-            display_render(frame);
-            SDL_UpdateTexture(tex, 0, frame, W * 4);
-        }
+        if (display_frame_due(&seen, &last_ms)) display_render(frame);
     }
-    SDL_RenderClear(ren);
-    {
-        SDL_Rect vis = { 0, VIS_TOP, W, VIS_H };
-        SDL_RenderCopy(ren, tex, full_frame ? 0 : &vis, 0);
-    }
-    SDL_RenderPresent(ren);
+    present(frame);
 }
 
 void window_sleep(int ms)

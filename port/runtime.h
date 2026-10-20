@@ -39,6 +39,7 @@ void display_setstt(void);
 void display_render(uint32_t *out);   /* 384x280, 0x00RRGGBB */
 void display_report(void);
 void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 = RL7, 5 = DYUV ... */
+void display_forget_video(void);      /* a new disc play starts */
 void display_maybe_dump(void);
 void display_save_tables(void);
 void display_restore_tables(void);
@@ -62,6 +63,8 @@ void audio_init(void);
 extern const char *wav_path;          /* --wav <file> */
 void audio_sector(const uint8_t *payload, int coding);
 void audio_stop(void);
+void audio_set_volume(int v);         /* 0-10 */
+void audio_pause(int paused);
 unsigned long audio_sector_count(void);
 
 #endif

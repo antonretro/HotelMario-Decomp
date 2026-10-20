@@ -165,6 +165,7 @@ void cdrtos_play(FILE *f, uint32_t pcb)
     play.stopping = 0;
     play.start = clock();
     play.fed = 0;
+    display_forget_video();
     if (trace)
         fprintf(stderr, "  [cd-i] play from sector %ld: channels %08x audio %04x records %u lists %x/%x/%x\n",
                 play.sector, rd32(pcb + 8), rd16(pcb + 0xc), rd32(pcb + 4), rd32(pcb + 0xe), rd32(pcb + 0x12),

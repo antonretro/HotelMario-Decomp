@@ -196,8 +196,11 @@ void interp_hook(unsigned int pc)
             if (pc == wl[i] && hits[i]++ < 5) {
             {
                 uint32_t a2 = m68k_get_reg(NULL, M68K_REG_A2), sp = m68k_get_reg(NULL, M68K_REG_A7);
-                fprintf(stderr, "  [watch] reached %06x (d0=%x a2=%x: [470]=%x [478]=%d [480]=%d; sp+c=%x) at %lu ms\n", pc,
-                        m68k_get_reg(NULL, M68K_REG_D0), a2, rd32(a2 + 0x470), (int)rd32(a2 + 0x478),
+                fprintf(stderr, "  [watch] reached %06x (d0=%x d1=%x d2=%x d4=%x d5=%x a0=%x a2=%x a6=%x: [470]=%x [478]=%d "
+                        "[480]=%d; sp+c=%x) at %lu ms\n", pc,
+                        m68k_get_reg(NULL, M68K_REG_D0), m68k_get_reg(NULL, M68K_REG_D1), m68k_get_reg(NULL, M68K_REG_D2),
+                        m68k_get_reg(NULL, M68K_REG_D4), m68k_get_reg(NULL, M68K_REG_D5), m68k_get_reg(NULL, M68K_REG_A0),
+                        a2, m68k_get_reg(NULL, M68K_REG_A6), rd32(a2 + 0x470), (int)rd32(a2 + 0x478),
                         (int)rd32(a2 + 0x480), rd16(sp + 0xc), (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
             }
             }

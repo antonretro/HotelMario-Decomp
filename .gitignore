@@ -8,3 +8,6 @@ __pycache__/
 tools/ext/
 # generated from your own disc by tools/gen_asm.py
 asm/
+
+# the port's options file, written next to where you run it
+hotel_settings.ini
