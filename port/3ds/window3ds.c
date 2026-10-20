@@ -29,6 +29,7 @@ int headless;
 static uint32_t frame[W * H];
 static u64 start_ms, next_frame_ms;
 static unsigned long refresh_count;
+static u64 t_idle;                  /* time spent sleeping, for the [perf] line */
 #define PTR_W 768
 #define PTR_H 560
 static int ptr_x = PTR_W / 2, ptr_y = PTR_H / 2, ptr_buttons;
@@ -117,11 +118,11 @@ void window_tick(void)
         if (!t_log) t_log = c;
         if (c - t_log >= SYSCLOCK_ARM11 * 2) {   /* every 2 s: where the time went */
             double s = (double)(c - t_log) / SYSCLOCK_ARM11;
-            fprintf(stderr, "  [perf] %lu ms: %.1f pictures/s, %.1f presents/s, drawing %.0f%%, screen copy %.0f%%, "
-                    "game %.0f%%\n", (unsigned long)now, pictures / s, presents / s,
-                    100.0 * t_render / (c - t_log), 100.0 * t_present / (c - t_log),
-                    100.0 - 100.0 * (t_render + t_present) / (c - t_log));
-            t_log = c; t_render = t_present = 0; pictures = presents = 0;
+            fprintf(stderr, "  [perf] %lu ms: %.1f pictures/s, drawing %.0f%%, screen copy %.0f%%, idle %.0f%%, "
+                    "game %.0f%%\n", (unsigned long)now, pictures / s,
+                    100.0 * t_render / (c - t_log), 100.0 * t_present / (c - t_log), 100.0 * t_idle / (c - t_log),
+                    100.0 - 100.0 * (t_render + t_present + t_idle) / (c - t_log));
+            t_log = c; t_render = t_present = t_idle = 0; pictures = presents = 0;
         }
         (void)t_loop;
     }
@@ -132,7 +133,12 @@ void window_tick(void)
 int window_refreshes_per_field(void) { return 0; }
 unsigned long window_refresh_count(void) { return refresh_count; }
 
-void window_sleep(int ms) { svcSleepThread((s64)ms * 1000000LL); }
+void window_sleep(int ms)
+{
+    u64 a = svcGetSystemTick();
+    svcSleepThread((s64)ms * 1000000LL);
+    t_idle += svcGetSystemTick() - a;
+}
 
 void window_set_pointer(int x, int y)
 {
