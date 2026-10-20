@@ -120,6 +120,12 @@ static void end_play_how(int how)
     uint16_t sig = (uint16_t)rd16(pcb + 2);
     static const char *what[] = { "end of play (records done)", "end of play (end of file)", "play aborted" };
     play.active = 0;
+    /* The manual: "The file position pointer is updated to the new file position after the play
+       terminates." Positions are in 2048-byte sectors (ds_seek uses lseek(sector << 11)); feed_sector moved
+       the host file by raw 2352-byte sectors, so set it explicitly. The Philips logo program starts its
+       second play from here without seeking; reading the raw offset as sectors made it skip one, which put
+       every animation frame one sector out of step. */
+    fseek(play.f, play.sector * 2048L, SEEK_SET);
     if (how == END_ABORT) audio_stop();
     if (trace) fprintf(stderr, "  [cd-i] %s at sector %ld (%lu audio sectors so far)\n", what[how], play.sector,
                        audio_sector_count());
