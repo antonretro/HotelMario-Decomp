@@ -14,3 +14,6 @@ hotel_settings.ini
 
 # your saved games and high scores (the CD-i's NVRAM)
 saves/
+
+# progress site: hosted on Anthony's own website, kept out of the repository
+site/

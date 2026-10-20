@@ -3,8 +3,6 @@
 A decompilation of **Hotel Mario** (Fantasy Factory / Philips, CD-i, 1994), plus a BIOS-free PC port that
 runs the game from your own disc image.
 
-**Progress site:** https://antonretro.github.io/HotelMario-Decomp/
-
 ## Bring your own disc
 
 This repository contains **no game data**: no disc image, no extracted files, no game code. You supply your

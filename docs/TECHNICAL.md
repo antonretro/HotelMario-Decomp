@@ -220,7 +220,7 @@ byte. No matching decompilation of a CD-i game is known to exist.
    `seekNplay` and `movi_stan`.)
 
 The C is equivalent to the original but doesn't compile to identical bytes yet, because that needs the
-original Microware compiler. The current figures are on the [progress site](https://antonretro.github.io/HotelMario-Decomp/).
+original Microware compiler. `python -I tools/progress.py` prints the current figures.
 
 Decompiling turned up things nobody had documented: the exact date *ranges* of the holiday messages on
 the loading screen, a loading-screen owner list that skips hotel 6 (and the only unnamed Koopaling, Iggy),
