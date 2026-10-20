@@ -38,9 +38,7 @@ void cdrtos_kill(void);
 void display_setstt(void);
 void display_render(uint32_t *out);   /* 384x280, 0x00RRGGBB */
 void display_report(void);
-void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 = RL7, 5 = DYUV ... */
-void display_forget_video(void);      /* a new disc play starts */
-void display_maybe_dump(void);
+void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 = RL7, 5 = DYUV ... */void display_maybe_dump(void);
 void display_save_tables(void);
 void display_restore_tables(void);
 extern unsigned dump_at_ms, dump_every_ms;

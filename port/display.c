@@ -101,14 +101,6 @@ void display_restore_tables(void)
                        active_fct[0], active_fct[1], active_lct[0], active_lct[1]);
 }
 
-/* A new disc play starts: forget the pictures earlier plays streamed. The game reuses that memory for
-   pictures it draws itself (the stage's sprite layer sits where a cutscene once streamed), and a stale
-   record made the renderer stop that layer early on alternate frames - the sprites flickered. */
-void display_forget_video(void)
-{
-    memset(regions, 0, sizeof regions);
-}
-
 void display_note_video(uint32_t buf, uint32_t bytes, int fmt)
 {
     int i, me = -1;
@@ -138,12 +130,20 @@ static uint32_t region_end(uint32_t addr)
     return 0;
 }
 
+/* Is the picture at addr run-length data? Its stream must say so (RL7 / RL3 sectors) and the data must look
+   like it: run markers have bit 7 set, which plain 7-bit CLUT data never has. The game draws some pictures
+   itself in memory a stream once used - the stage's sprite layer sits on an old cutscene buffer - and
+   decoding that as run-length cut the layer short on alternate frames (the sprites flickered). */
 static int is_run_length(uint32_t addr)
 {
-    int i;
+    int i, k;
     for (i = 0; i < NREGION; i++)
-        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len)
-            return regions[i].fmt == 4 || regions[i].fmt == 3;   /* RL7 / RL3 */
+        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len) {
+            if (regions[i].fmt != 4 && regions[i].fmt != 3) return 0;
+            for (k = 0; k < 2048; k++)
+                if (rd8(addr + k) & 0x80) return 1;
+            return 0;
+        }
     return 0;
 }
 
@@ -477,7 +477,10 @@ void display_render(uint32_t *out)
                 for (c = 0; c < LCT_COLS; c++) instr(lct[active_lct[p]][y][c], p);
             if (vs.line_addr[p] != before || y == 0) { /* new display start: check what data it shows */
                 plane_rl[p] = is_run_length(vs.line_addr[p]);
-                plane_end[p] = region_end(vs.line_addr[p]);
+                /* Only a run-length picture stops at the end of its stream (the Philips logo's 240-line
+                   frames). Other pictures can sit in memory an earlier stream once used - the stage's sprite
+                   layer does - and cutting those off at a stale end made the sprites flicker. */
+                plane_end[p] = plane_rl[p] ? region_end(vs.line_addr[p]) : 0;
             }
         }
         if (y == 0) { frame_start[0] = vs.line_addr[0]; frame_start[1] = vs.line_addr[1]; }

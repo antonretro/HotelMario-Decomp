@@ -12,6 +12,7 @@ typedef struct {
     int monitor_rate;   /* redraw at the monitor's refresh rate instead of 50 Hz */
     int volume;         /* 0-10 */
     int skip_philips;   /* don't run the Philips logo program at start-up */
+    int game_speed;     /* 0 = original 50 Hz (PAL), 1 = 60 Hz (NTSC pace), 2 = 75 Hz */
 } Settings;
 
 extern Settings settings;
@@ -22,5 +23,6 @@ void settings_save(void);
 void settings_draw(uint32_t *fb, int w, int h, int top);
 int settings_change(int d);
 int settings_count(void);
+int field_rate(void);   /* game fields per second from the game speed setting */
 
 #endif

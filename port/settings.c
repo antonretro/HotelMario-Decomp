@@ -19,7 +19,15 @@ Settings settings = {
     1,      /* redraw at the monitor's refresh rate */
     10,     /* volume 0-10 */
     0,      /* skip the Philips logo */
+    0,      /* game speed: original 50 Hz */
 };
+
+/* Game fields per second. The original PAL game updates 50 times a second; the faster settings only speed up
+   the game's own frame timer - cutscenes, music and speech follow the disc and stay in sync. */
+int field_rate(void)
+{
+    return settings.game_speed == 2 ? 75 : settings.game_speed == 1 ? 60 : 50;
+}
 
 static const char *ini = "hotel_settings.ini";
 
@@ -31,6 +39,7 @@ static struct { const char *key; int *val, lo, hi; } fields[] = {
     { "monitor_rate", &settings.monitor_rate, 0, 1 },
     { "volume", &settings.volume, 0, 10 },
     { "skip_philips_logo", &settings.skip_philips, 0, 1 },
+    { "game_speed", &settings.game_speed, 0, 2 },
 };
 #define NFIELDS (int)(sizeof fields / sizeof fields[0])
 
@@ -109,7 +118,7 @@ static void text(uint32_t *fb, int w, int h, int x, int y, const char *s, uint32
 
 static const char *labels[] = {
     "FULLSCREEN", "WINDOW SIZE", "PICTURE CROP", "SMOOTH SCALING", "REDRAW AT MONITOR RATE",
-    "VOLUME", "SKIP PHILIPS LOGO",
+    "VOLUME", "SKIP PHILIPS LOGO", "GAME SPEED",
 };
 
 int settings_cursor;
@@ -128,6 +137,7 @@ void settings_draw(uint32_t *fb, int w, int h, int top)
         if (fields[i].hi == 1) strcpy(val, *fields[i].val ? "ON" : "OFF");
         else if (i == 1) snprintf(val, sizeof val, "%dx", *fields[i].val);
         else if (i == 2) strcpy(val, *fields[i].val == 0 ? "NONE" : *fields[i].val == 1 ? "EDGES" : "TV");
+        else if (i == 7) strcpy(val, *fields[i].val == 0 ? "ORIGINAL" : *fields[i].val == 1 ? "60HZ" : "75HZ");
         else snprintf(val, sizeof val, "%d", *fields[i].val);
         if (i == settings_cursor) text(fb, w, h, 30, y, ">", 0xFFD860);
         text(fb, w, h, 40, y, labels[i], col);

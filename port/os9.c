@@ -409,10 +409,10 @@ static void wait_ms(unsigned ms)
     }
 }
 
-static void wait_next_field(void)   /* 50 fields per second, like a PAL CD-i */
+static void wait_next_field(void)   /* 50 fields per second like a PAL CD-i (settings: game speed) */
 {
     static clock_t next;
-    clock_t now = clock(), field = CLOCKS_PER_SEC / 50;
+    clock_t now = clock(), field = CLOCKS_PER_SEC / field_rate();
     frame_syncs++;                     /* the game finished a frame: now is the time to show it */
     if (!next || now - next > 5 * field) next = now;   /* resync after long gaps */
     next += field;
