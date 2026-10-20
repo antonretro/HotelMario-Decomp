@@ -122,6 +122,9 @@ void window_tick(void)
                     "game %.0f%%\n", (unsigned long)now, pictures / s,
                     100.0 * t_render / (c - t_log), 100.0 * t_present / (c - t_log), 100.0 * t_idle / (c - t_log),
                     100.0 - 100.0 * (t_render + t_present + t_idle) / (c - t_log));
+            /* and on the bottom screen, so the speed can be read off a real console */
+            printf("\x1b[28;0H%4.1f pictures/s  draw %2.0f%%  idle %2.0f%%   ", pictures / s,
+                   100.0 * (t_render + t_present) / (c - t_log), 100.0 * t_idle / (c - t_log));
             t_log = c; t_render = t_present = t_idle = 0; pictures = presents = 0;
         }
         (void)t_loop;
