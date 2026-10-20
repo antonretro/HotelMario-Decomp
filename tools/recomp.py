@@ -393,9 +393,11 @@ class Func:
         # tables), which decodes as instructions but must never fall into the next function.
         last = self.insns[-1].mnemonic.partition(".")[0] if self.insns else "rts"
         # Applied only where checked: of the 28 functions this rule would cover, turning them all on broke the
-        # Philips logo program, while _sysret alone fixes the library's error returns. RECOMP_FT_ONLY=hex,hex
-        # overrides the list (for testing more).
-        only = os.environ.get("RECOMP_FT_ONLY", "1a85e")
+        # Philips logo program, while _sysret alone fixes the library's error returns. Also on: sleep, which only
+        # converts seconds and falls into tsleep for the system call (without it sleep returned at once and
+        # the credits raced past in seconds), __sysret0 into __sysret, and _T$DSub, which flips the sign and
+        # falls into _T$DAdd. RECOMP_FT_ONLY=hex,hex overrides the list (for testing more).
+        only = os.environ.get("RECOMP_FT_ONLY", "1a85e,1a1f0,17466,1ae76")
         if (last not in ("rts", "rte", "rtr", "bra", "jmp") and self.funcs and self.end in self.funcs
                 and self.last_reachable()
                 and (only == "all" or self.start in {int(x, 16) for x in only.split(",")})):

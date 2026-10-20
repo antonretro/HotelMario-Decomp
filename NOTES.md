@@ -199,6 +199,16 @@ had it the other way round, so nothing was heard. With the fix:
   tree shape for ~0.5 s until the map turns mixing on. That follows the register writes and MCD212 rules
   (A in front, brightness applies in overlay), so it is probably what a real player shows too.
 
+### Ending and credits (2026-10-20)
+- Bowser's hotel is game index 8 (15 stages; index 6 is never used). Winning its last stage runs
+  `exit_hm(1)`: the ending animation, then the save screen; EXIT leads to the high scores and `exit_hm(0)`,
+  the scrolling credits (also after a game over), then the program exits.
+- The credits wait one field per line (`dc_ssig` + `sleep(10)`). The library's `sleep` falls through into
+  `tsleep`; without that fall-through the credits raced past in seconds. F$Sleep with bit 31 set counts
+  1/256 s.
+- Test without playing: a save for hotel 8 stage 0x0e (`08 0f` at +0x34), RESTORE, and
+  `HM_POKE=ms:20087e=0;ms:20057a=0` (Bowser phase off, no open doors) wins the stage.
+
 ### Saving (2026-10-20)
 - `/nvr/hotel_mario` (one 62-byte record: three-letter name at +0x24, hotel/stage at +0x34) lives in
   `saves/`. Hold Down + button 2 on a stage card to save; RESTORE under PLAYER 1 lists the saves.

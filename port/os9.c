@@ -87,18 +87,47 @@ static void ticker(void *unused)
                 at = -1;
             }
         }
-        {   /* HM_POKE=ms:addr=value (hex addr/value): once at that time, write a 16-bit word - for tests, e.g.
-               0x20057a=0 (the open-door count) wins the stage, to reach the ending without playing */
-            static long at = -2;
-            static uint32_t addr, val;
-            if (at == -2) {
+        {   /* HM_POKE=ms:addr=value;... (hex addr/value): at each time, write a 16-bit word - for tests, e.g.
+               20057a=0 (open doors) with 20087e=0 (Bowser phase flag) wins the stage, reaching the ending */
+            static int n = -1;
+            static long at[8];
+            static uint32_t addr[8], val[8];
+            int i;
+            if (n < 0) {
                 const char *s = getenv("HM_POKE");
-                at = s && sscanf(s, "%ld:%x=%x", &at, &addr, &val) == 3 ? at : -1;
+                int used;
+                for (n = 0; s && n < 8 && sscanf(s, "%ld:%x=%x%n", &at[n], &addr[n], &val[n], &used) == 3; n++) {
+                    s += used;
+                    if (*s == ';') s++;
+                }
             }
-            if (at >= 0 && (long)(clock() * 1000 / CLOCKS_PER_SEC) >= at) {
-                wr16(addr, val);
-                fprintf(stderr, "  [poke] %06x = %04x\n", addr, val);
-                at = -1;
+            for (i = 0; i < n; i++)
+                if (at[i] >= 0 && (long)(clock() * 1000 / CLOCKS_PER_SEC) >= at[i]) {
+                    wr16(addr[i], val[i]);
+                    fprintf(stderr, "  [poke] %06x = %04x\n", addr[i], val[i]);
+                    at[i] = -1;
+                }
+        }
+        {   /* HM_WATCHW=addr,addr,... (hex): log 16-bit words whenever one changes */
+            static int n = -1;
+            static uint32_t wa[8], wv[8];
+            if (n < 0) {
+                const char *s = getenv("HM_WATCHW");
+                for (n = 0; s && *s && n < 8; n++) {
+                    wa[n] = (uint32_t)strtoul(s, (char **)&s, 16);
+                    wv[n] = 0xFFFFFFFF;
+                    if (*s == ',') s++;
+                }
+            }
+            if (n > 0) {
+                int i, changed = 0;
+                for (i = 0; i < n; i++)
+                    if (rd16(wa[i]) != wv[i]) { wv[i] = rd16(wa[i]); changed = 1; }
+                if (changed) {
+                    fprintf(stderr, "  [watch] at %lu ms:", (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC));
+                    for (i = 0; i < n; i++) fprintf(stderr, " %06x=%04x", wa[i], wv[i]);
+                    fprintf(stderr, "\n");
+                }
             }
         }
         if (gamelog) {     /* debug: the input fields the game stores ([470] buttons, [478] x, [480] y) */
@@ -568,8 +597,12 @@ void os9_trap(int n, uint32_t code)
     case 0x0A: {                                                       /* F$Sleep: d0 ticks (1/100 s), 0 = until a signal */
         /* A signal wakes the sleeper (the bumper sleeps until its end-of-play signal). For interpreted
            code the handler then runs right after this call returns, like OS-9 does. */
+        /* Bit 31 set: the time is in 1/256 s - the C library's sleep(seconds) passes seconds << 8 that way
+           (the credits wait up to 10 s per line for the next-field signal). Read as plain ticks, the value
+           overflowed and the sleep ended at once: the credits raced past in a few seconds. */
         unsigned ticks = cpu.d[0];
-        clock_t end = clock() + (clock_t)ticks * CLOCKS_PER_SEC / 100;
+        double secs = (ticks & 0x80000000u) ? (ticks & 0x7FFFFFFFu) / 256.0 : ticks / 100.0;
+        clock_t end = clock() + (clock_t)(secs * CLOCKS_PER_SEC);
         signal_flag = 0;
         while (!signal_flag && (!ticks || clock() < end)) {
             rt_poll();
