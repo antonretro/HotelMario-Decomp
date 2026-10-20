@@ -66,6 +66,13 @@ void audio_init(void);
 extern const char *wav_path;          /* --wav <file> */
 void audio_sector(const uint8_t *payload, int coding);
 void audio_stop(void);
+
+/* soundmap.c - CD-i sound maps (the stage music and sound effects) */
+int soundmap_setstt(uint32_t fn);
+int soundmap_getstt(uint32_t fn);
+void soundmap_filled(uint32_t buf);
+void soundmap_poll(void);
+uint32_t os9_alloc(uint32_t size);
 void audio_set_volume(int v);         /* 0-10 */
 void audio_pause(int paused);
 unsigned long audio_sector_count(void);

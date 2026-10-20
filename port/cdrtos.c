@@ -248,7 +248,9 @@ static void feed_sector(void)
     }
 
     if (list && (pcl = rd32(list + ch * 4)) != 0) {
-        int size = (sm & 0x20) ? 2324 : 2048;
+        /* audio sectors carry 18 sound groups (2304 bytes) then padding: only the groups go to memory (a sound
+           map is exactly that big, and the padding overwrote the map descriptor after it) */
+        int size = (sm & 0x04) ? 2304 : (sm & 0x20) ? 2324 : 2048;
         uint32_t cnt = rd32(pcl + 0x18), buf = rd32(pcl + 0x0a), bsz = rd32(pcl + 0x0e);
         uint32_t at = cnt ? fill_offset(pcl) : 0;   /* sectors are packed back to back, whatever their form */
         if (buf) memcpy(RAM + ((buf + at) & RAM_MASK), s + 24, size);
@@ -266,6 +268,7 @@ static void feed_sector(void)
             uint16_t sig = (uint16_t)rd16(pcl + 4);  /* the game puts the signal to send in the PCL */
             wr32(list + ch * 4, rd32(pcl + 6));
             deliver(sig ? sig : (base | ch));
+            if (base == 0xFE00 && buf) soundmap_filled(buf);   /* audio into a sound map: play it */
         }
     }
     if (sm & 0x10) pcb_event(0x10);               /* trigger */
@@ -298,7 +301,7 @@ void rt_poll(void)
         }
     }
     game_heartbeat();
-    if (!in_handler) { window_tick(); display_maybe_dump(); }
+    if (!in_handler) { window_tick(); display_maybe_dump(); soundmap_poll(); }
     if (trace) {                               /* periodic display summary for headless debugging */
         static clock_t last;
         if (game_clock() - last > 10 * CLOCKS_PER_SEC) { last = game_clock(); display_report(); }

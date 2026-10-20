@@ -105,6 +105,9 @@ unsigned press_every;               /* --press N: simulate a button press every 
 static void ok(void)            { cpu.c = 0; }
 static void fail(uint32_t err)  { cpu.c = 1; cpu.d[1] = err; }
 
+static uint32_t alloc(uint32_t size);
+uint32_t os9_alloc(uint32_t size) { return alloc(size); }
+
 static uint32_t alloc(uint32_t size)
 {
     uint32_t p = (heap + 15) & ~15u;
@@ -703,6 +706,8 @@ void os9_trap(int n, uint32_t code)
         } else if (code == 0x8E && (fn == 0x33 || fn == 0x37)) {       /* SS_Pause, SS_Cont */
             if (trace) fprintf(stderr, "  [cd-i] %s %s\n", fn == 0x33 ? "pause" : "continue", p->name);
             cdrtos_pause(fn == 0x33);
+        } else if (code == 0x8E && soundmap_setstt(fn)) {          /* sound maps (soundmap.c) */
+        } else if (code == 0x8D && soundmap_getstt(fn)) {
         } else {
             /* CD-RTOS device control (display, sound, pointer, disc): logged until the CD-i layer exists */
             fprintf(stderr, "  [cd-i] %s %s fn 0x%x (d2=%x d3=%x a0=%x)\n", code == 0x8D ? "GetStt" : "SetStt",
