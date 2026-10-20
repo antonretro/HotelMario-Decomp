@@ -156,10 +156,35 @@ void interp_dump_history(void)
 void interp_hook(unsigned int pc)
 {
     static unsigned real_hist[64], real_n;     /* the last instructions that weren't blank memory */
+    static unsigned jump_from[64], jump_to[64], jump_sp[64], jump_n, last_pc;   /* the last 64 jumps */
     history[hook_count & 63] = pc;
     if (rd16(pc)) real_hist[real_n++ & 63] = pc;
-    if ((pc & 1) || pc >= RAM_SIZE) {      /* ran off into nowhere: show how we got here */
+    if (pc < last_pc || pc > last_pc + 10) {
+        jump_from[jump_n & 63] = last_pc;
+        jump_to[jump_n & 63] = pc;
+        jump_sp[jump_n & 63] = m68k_get_reg(NULL, M68K_REG_A7);
+        jump_n++;
+    }
+    last_pc = pc;
+    if ((pc & 1) || pc >= RAM_SIZE || m68k_get_reg(NULL, M68K_REG_A7) < 0x1000) {   /* ran off into nowhere */
         int i;
+        {   /* has the program in memory been overwritten (a write through a null pointer)? */
+            uint32_t a, n = 0;
+            for (a = 0; a < program_size && n < 24; a++)
+                if (RAM[a] != program_copy[a]) {
+                    fprintf(stderr, "  program byte %06x changed: %02x -> %02x\n", a, program_copy[a], RAM[a]);
+                    n++;
+                }
+            if (!n) fprintf(stderr, "  program in memory unchanged\n");
+        }
+        fprintf(stderr, "stopped: interpreter went wrong at 0x%x (a7=%x). The last jumps (from -> to, a7 after):\n",
+                pc, m68k_get_reg(NULL, M68K_REG_A7));
+        for (i = 0; i < 64; i++) {
+            unsigned k = (jump_n + i) & 63;
+            char buf[100];
+            m68k_disassemble(buf, jump_from[k], M68K_CPU_TYPE_68000);
+            fprintf(stderr, "  %06x -> %06x  a7=%06x   (%s)\n", jump_from[k], jump_to[k], jump_sp[k], buf);
+        }
         fprintf(stderr, "stopped: interpreter at bad address 0x%x (a7=%x). Last instructions in real code:\n", pc,
                 m68k_get_reg(NULL, M68K_REG_A7));
         for (i = 0; i < 64; i++) {
@@ -269,6 +294,14 @@ static void interp_call_nested(uint32_t addr)
 /* Called like a jsr: the caller has NOT pushed a return address yet. */
 void interp_call(uint32_t addr)
 {
+    if (!rd16(addr) && !rd16(addr + 2)) {
+        /* Blank memory is never real code: a streamed module the game calls into hasn't arrived from the disc
+           yet (a timing race seen right after the Philips logo program exits). Running it slid through the
+           zeros into the next module's header and crashed; skip the call and say who made it. */
+        fprintf(stderr, "  [interp] call into blank memory at 0x%x skipped (d0=%x a7=%x, return %x)\n", addr,
+                cpu.d[0], cpu.a[7], rd32(cpu.a[7]));
+        return;
+    }
     if (running) {
         interp_call_nested(addr);
         return;

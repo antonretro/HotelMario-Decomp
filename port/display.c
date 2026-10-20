@@ -578,8 +578,9 @@ void display_maybe_dump(void)
                 fclose(o2);
             }
         }
-        if (trace) fprintf(stderr, "  [dump] timeline frame %lu ms (A %06x coding %x / B %06x coding %x)\n",
-                           now - now % dump_every_ms, vs.line_addr[0], vs.coding[0], vs.line_addr[1], vs.coding[1]);
+        if (trace) fprintf(stderr, "  [dump] timeline frame %lu ms (A start %06x rl %d coding %x / B start %06x rl %d coding %x)\n",
+                           now - now % dump_every_ms, frame_start[0], plane_rl[0], vs.coding[0], frame_start[1],
+                           plane_rl[1], vs.coding[1]);
     }
     if (dump_at_ms == 1) dump_at_ms = 0, done = 0;   /* F12 in the window: dump right now */
     else if (!dump_at_ms || done || now < dump_at_ms) return;

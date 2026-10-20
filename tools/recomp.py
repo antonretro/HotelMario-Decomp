@@ -337,6 +337,33 @@ class Func:
             out.append(f"wrsz({a}, {r}, {sz});" if to_mem else f"{r} = sx(rdsz({a}, {sz}), {sz});")
         return out
 
+    def last_reachable(self):
+        """Can execution reach the function's last instruction? Follow straight-line flow and branches from the
+        start; rts/rte/rtr/jmp end a path, bra only continues at its target."""
+        pos = {i.address: k for k, i in enumerate(self.insns)}
+        seen, todo = set(), [0]
+        while todo:
+            k = todo.pop()
+            if k in seen or k >= len(self.insns):
+                continue
+            seen.add(k)
+            i = self.insns[k]
+            base = i.mnemonic.partition(".")[0]
+            if base in ("rts", "rte", "rtr", "jmp"):
+                continue
+            if base == "bra" or (base.startswith("b") and base[1:] in CC):
+                t = (i.address + 2 + i.operands[0].br_disp.disp) & 0xFFFFFFFF
+                if t in pos:
+                    todo.append(pos[t])
+                if base == "bra":
+                    continue
+            elif base.startswith("db") and base[2:] in CC:
+                t = (i.address + 2 + i.operands[1].br_disp.disp) & 0xFFFFFFFF
+                if t in pos:
+                    todo.append(pos[t])
+            todo.append(k + 1)
+        return len(self.insns) - 1 in seen
+
     def emit(self, d):
         body = []
         for k, i in enumerate(self.insns):
@@ -358,6 +385,21 @@ class Func:
             if addr in self.labels:
                 out.append(f"L_{addr:x}:;")
             out.append(f"    {{ /* {addr:06x} {text} */ " + " ".join(lines) + " }")
+        # Code that runs off the end of its symbol falls through into the next one: the C library's _sysret is
+        # just "bcc done" and carries on into _os9err (errno = d1, return -1). Ending the function there made
+        # every failed library call return without setting errno - the game never learned that its save
+        # file didn't exist yet, so it couldn't create one.
+        # Only when that last instruction can really run: many functions end in data after their rts (strings,
+        # tables), which decodes as instructions but must never fall into the next function.
+        last = self.insns[-1].mnemonic.partition(".")[0] if self.insns else "rts"
+        # Applied only where checked: of the 28 functions this rule would cover, turning them all on broke the
+        # Philips logo program, while _sysret alone fixes the library's error returns. RECOMP_FT_ONLY=hex,hex
+        # overrides the list (for testing more).
+        only = os.environ.get("RECOMP_FT_ONLY", "1a85e")
+        if (last not in ("rts", "rte", "rtr", "bra", "jmp") and self.funcs and self.end in self.funcs
+                and self.last_reachable()
+                and (only == "all" or self.start in {int(x, 16) for x in only.split(",")})):
+            out.append(f"    {cfn(self.end)}(); return;   /* falls through into the next function */")
         out.append("    return;")
         if self.dynamic_jump:
             out.append("#undef DYNJUMP")

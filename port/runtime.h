@@ -14,6 +14,8 @@ extern int full_frame;                /* --full-frame: show all 280 lines, not t
 #include "m68k.h"
 
 void os9_init(void);
+extern uint8_t program_copy[];        /* the program as loaded, for checking it wasn't overwritten */
+extern uint32_t program_size;
 void os9_tick(void);               /* update the tick counter in the system globals */
 #include <time.h>
 clock_t game_clock(void);          /* real time minus main-loop stalls (window drags, the settings menu) */

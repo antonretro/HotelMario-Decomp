@@ -1,6 +1,6 @@
 """Turn the port's --dump-every frames (build/port/frames/*.rgb, 384x280 RGB) into one PNG contact sheet.
 
-Usage: python tools/contact_sheet.py [out.png] [columns] [_A|_B]
+Usage: python tools/contact_sheet.py [out.png] [columns] [_A|_B|""] [from_ms] [to_ms] [every_ms]
 Tiles go left to right in time order (file names are ms); _A / _B shows one plane alone.
 """
 import glob
@@ -25,8 +25,12 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "build", "port", "timeline.png")
     cols = int(sys.argv[2]) if len(sys.argv) > 2 else 6
     suffix = sys.argv[3] if len(sys.argv) > 3 else ""      # "", "_A" or "_B": the frame or one plane
+    lo = int(sys.argv[4]) if len(sys.argv) > 4 else 0              # optional: from ms, to ms, every ms
+    hi = int(sys.argv[5]) if len(sys.argv) > 5 else 10 ** 9
+    step = int(sys.argv[6]) if len(sys.argv) > 6 else 1
     files = sorted(f for f in glob.glob(os.path.join(ROOT, "build", "port", "frames", "*.rgb"))
-                   if os.path.basename(f)[6:-4] == suffix)
+                   if os.path.basename(f)[6:-4] == suffix and os.path.getsize(f) == W * H * 3  # skip cut-off ones
+                   and lo <= int(os.path.basename(f)[:6]) <= hi and int(os.path.basename(f)[:6]) % step == 0)
     if not files:
         sys.exit("no frames - run the port with --dump-every <ms>")
     tw, th, gap = W // 2, H // 2, 4

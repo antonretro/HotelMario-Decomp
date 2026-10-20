@@ -3,8 +3,9 @@
  *
  * Register conventions follow the OS-9/68K technical manual: arguments and results in d0-d3/a0-a2,
  * carry set + d1 = error code on failure. Files on the disc are read from fs_root (your extracted
- * disc), NVRAM saves go to build/nvr. Unknown calls stop the program so they can be added.
+ * disc), NVRAM saves go to saves/ (the player's NVRAM, created when needed). Unknown calls stop the program so they can be added.
  */
+#include <direct.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +102,7 @@ static void ticker(void *unused)
 }
 #endif
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
+static int nvr_errno_check;          /* debug: report errno after a failed save open */
 
 static void ok(void)            { cpu.c = 0; }
 static void fail(uint32_t err)  { cpu.c = 1; cpu.d[1] = err; }
@@ -133,7 +135,7 @@ static void cstring(uint32_t a, char *out, int max)
 static void host_path(const char *name, char *out, int max)
 {
     const char *p = name;
-    if (!strncmp(p, "/nvr", 4)) { snprintf(out, max, "build/nvr%s", p + 4); return; }
+    if (!strncmp(p, "/nvr", 4)) { snprintf(out, max, "saves%s", p + 4); return; }
     if (!strncmp(p, "/cd/", 4)) p += 4;
     while (*p == '/') p++;
     snprintf(out, max, "%s/%s", fs_root, p);
@@ -157,6 +159,7 @@ void os9_init(void)
 #ifdef _WIN32
     if (!getenv("HM_NOTICKER")) _beginthread(ticker, 0, 0);
 #endif
+    _mkdir("saves");                     /* the NVRAM: hotel_mario holds the high scores and saved games */
     paths[0].f = stdin;
     paths[1].f = stdout;
     paths[2].f = stderr;
@@ -222,8 +225,12 @@ static void io_open(int create)
         host_path(name, host, sizeof host);
         paths[p].f = fopen(host, create ? "w+b" : ((cpu.d[0] & 2) ? "r+b" : "rb"));
         if (!paths[p].f && (cpu.d[0] & 2)) paths[p].f = fopen(host, "w+b");
+        if (!strncmp(name, "/nvr", 4))          /* saves: always worth a line in the log */
+            fprintf(stderr, "  [nvr] %s %s (mode %x) -> %s\n", create ? "create" : "open", name, cpu.d[0] & 0xFF,
+                    paths[p].f ? "ok" : "not found");
         if (!paths[p].f) {
             if (trace) fprintf(stderr, "  [os9] open %s failed\n", name);
+            if (!strncmp(name, "/nvr", 4)) nvr_errno_check = 1;
             fail(E_PNNF);
             return;
         }
@@ -527,6 +534,10 @@ void os9_trap(int n, uint32_t code)
         exit(5);
     }
     if (trace) fprintf(stderr, "  [os9] call 0x%02x\n", code);
+    if (nvr_errno_check) {                   /* debug: what the game's errno holds after a failed save open */
+        nvr_errno_check = 0;
+        fprintf(stderr, "  [nvr] next call 0x%02x, errno now %x\n", code, rd32(cpu.a[6] - 0x7ff4));
+    }
     os9_tick();
     switch (code) {
     case 0x00:                                                         /* F$Link */
@@ -635,12 +646,12 @@ void os9_trap(int n, uint32_t code)
             last_p = p;
         }
         if (code == 0x8D && fn == 0x43) {                              /* gs_free: free bytes on the device */
-            /* A CD-i player has 8 KB of NVRAM; only Hotel Mario's own save file lives in ours (build/nvr). */
-            FILE *s = fopen("build/nvr/hotel_mario", "rb");
+            /* A CD-i player has 8 KB of NVRAM; only Hotel Mario's own save file lives in ours (saves/). */
+            FILE *s = fopen("saves/hotel_mario", "rb");
             long used = 0;
             if (s) { fseek(s, 0, SEEK_END); used = ftell(s); fclose(s); }
             cpu.d[2] = (uint32_t)(8192 - used);
-            if (trace) fprintf(stderr, "  [os9] NVRAM free %u bytes\n", cpu.d[2]);
+            fprintf(stderr, "  [nvr] free space %u bytes (asked on %s)\n", cpu.d[2], p->name);
         } else if (p->f && code == 0x8D && fn == 0x02) {               /* SS_Size */
             long cur = ftell(p->f);
             fseek(p->f, 0, SEEK_END);

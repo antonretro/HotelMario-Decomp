@@ -11,3 +11,6 @@ asm/
 
 # the port's options file, written next to where you run it
 hotel_settings.ini
+
+# your saved games and high scores (the CD-i's NVRAM)
+saves/

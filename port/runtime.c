@@ -14,6 +14,8 @@
 
 Cpu cpu;
 uint8_t RAM[RAM_SIZE];
+uint8_t program_copy[0x40000];   /* the program as loaded from the disc, before the game ran */
+uint32_t program_size;
 
 extern const struct { uint32_t addr; RecompFn fn; const char *name; } recomp_table[];
 extern const int recomp_count;
@@ -144,7 +146,8 @@ int main(int argc, char **argv)
     }
 
     /* program module at address 0, initialised data from the cdi_hotel_data module */
-    load_file("cdi_hotel", RAM, 0x40000);
+    program_size = (uint32_t)load_file("cdi_hotel", RAM, 0x40000);
+    memcpy(program_copy, RAM, program_size);     /* untouched copy of the program (see interp.c) */
     load_file("cdi_hotel_data", datamod, sizeof datamod);
     off = (datamod[0x44] << 24) | (datamod[0x45] << 16) | (datamod[0x46] << 8) | datamod[0x47];
     size = (datamod[0x48] << 24) | (datamod[0x49] << 16) | (datamod[0x4a] << 8) | datamod[0x4b];
