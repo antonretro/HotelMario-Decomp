@@ -1,7 +1,7 @@
 /*
  * window3ds.c - the 3DS side of window.c: the CD-i picture on the top screen, buttons as the CD-i pointer.
  *
- * The TV crop (lines 2-241) is exactly 240 lines, so the 384 x 240 picture fits the 400 x 240 top screen
+ * The TV crop (lines 2-240, where the pictures are) fits the 400 x 240 top screen
  * at full size with an 8-pixel border each side. Pixels are written straight into the framebuffer (no GPU):
  * the top screen is stored rotated, one 240-pixel column after another, bottom to top, 3 bytes BGR.
  * The bottom screen is a text console for messages.
@@ -20,7 +20,7 @@
 #define W 384
 #define H 280
 #define VIS_TOP 2
-#define VIS_H 240
+#define VIS_H 239              /* lines 2-240; the screen's bottom row stays black */
 #define LEFT ((400 - W) / 2)
 
 int full_frame;
@@ -33,6 +33,44 @@ static u64 t_idle;                  /* time spent sleeping, for the [perf] line 
 #define PTR_W 768
 #define PTR_H 560
 static int ptr_x = PTR_W / 2, ptr_y = PTR_H / 2, ptr_buttons;
+
+/* Drawing on another core: the game thread copies what a finished picture needs (display_snapshot) and the
+   drawer turns it into pixels on the screen while the game carries on. Core 2 on a New 3DS, else core 1. */
+static LightEvent draw_go;
+static volatile int draw_busy;
+static int draw_core = -1;          /* -1 = drawing on the game's core */
+static volatile u64 draw_ticks;
+static volatile unsigned drawn;
+static void present(const uint32_t *fb);
+
+static void drawer(void *unused)
+{
+    (void)unused;
+    for (;;) {
+        u64 a;
+        LightEvent_Wait(&draw_go);
+        a = svcGetSystemTick();
+        display_render_snapshot(frame);
+        present(frame);
+        draw_ticks += svcGetSystemTick() - a;
+        drawn++;
+        __atomic_store_n(&draw_busy, 0, __ATOMIC_RELEASE);
+    }
+}
+
+static void start_drawer(void)
+{
+    s32 prio = 0x30;
+    if (dump_every_ms || dump_at_ms) return;        /* frame dumps draw on the game thread */
+    svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
+    LightEvent_Init(&draw_go, RESET_ONESHOT);
+    if (threadCreate(drawer, 0, 32 * 1024, prio + 1, 2, true)) draw_core = 2;
+    else {
+        APT_SetAppCpuTimeLimit(80);                 /* an original 3DS lends core 1 to games, up to 80% */
+        if (threadCreate(drawer, 0, 32 * 1024, prio + 1, 1, true)) draw_core = 1;
+    }
+    printf(draw_core >= 0 ? "Drawing on CPU core %d\n" : "Drawing on the game's core\n", draw_core);
+}
 
 clock_t port_clock(void)
 {
@@ -50,6 +88,7 @@ void window_init(void)
     printf("Hotel Mario (CD-i) - 3DS port\nA = button 1, B = button 2\nSTART + SELECT = quit\n\n");
     audio_init();
     audio_set_volume(settings.volume);
+    start_drawer();
 }
 
 static void present(const uint32_t *fb)
@@ -106,11 +145,18 @@ void window_tick(void)
         static unsigned pictures, presents;
         u64 a = svcGetSystemTick(), b, c;
         int fresh = 0;
-        if (display_frame_due(&seen, &last_ms)) { display_render(frame); pictures++; fresh = 1; }
+        if (display_frame_due(&seen, &last_ms)) {
+            if (draw_core < 0) { display_render(frame); fresh = 1; }
+            else if (!__atomic_load_n(&draw_busy, __ATOMIC_ACQUIRE) && display_snapshot()) {
+                draw_busy = 1;                      /* the drawer takes it from here */
+                LightEvent_Signal(&draw_go);
+            }                                       /* (drawer still busy: this picture is skipped) */
+        }
         b = svcGetSystemTick();
         if (fresh) {           /* the screen keeps showing the last picture: only copy a new one */
             present(frame);
             presents++;
+            pictures++;
         }
         c = svcGetSystemTick();
         t_render += b - a;
@@ -118,14 +164,16 @@ void window_tick(void)
         if (!t_log) t_log = c;
         if (c - t_log >= SYSCLOCK_ARM11 * 2) {   /* every 2 s: where the time went */
             double s = (double)(c - t_log) / SYSCLOCK_ARM11;
-            fprintf(stderr, "  [perf] %lu ms: %.1f pictures/s, drawing %.0f%%, screen copy %.0f%%, idle %.0f%%, "
-                    "game %.0f%%\n", (unsigned long)now, pictures / s,
-                    100.0 * t_render / (c - t_log), 100.0 * t_present / (c - t_log), 100.0 * t_idle / (c - t_log),
+            double shown = draw_core < 0 ? pictures : drawn, other = 100.0 * draw_ticks / (c - t_log);
+            fprintf(stderr, "  [perf] %lu ms: %.1f pictures/s, drawing %.0f%% (+ other core %.0f%%), screen copy %.0f%%, "
+                    "idle %.0f%%, game %.0f%%\n", (unsigned long)now, shown / s,
+                    100.0 * t_render / (c - t_log), other, 100.0 * t_present / (c - t_log), 100.0 * t_idle / (c - t_log),
                     100.0 - 100.0 * (t_render + t_present + t_idle) / (c - t_log));
             /* and on the bottom screen, so the speed can be read off a real console */
-            printf("\x1b[28;0H%4.1f pictures/s  draw %2.0f%%  idle %2.0f%%   ", pictures / s,
-                   100.0 * (t_render + t_present) / (c - t_log), 100.0 * t_idle / (c - t_log));
+            printf("\x1b[28;0H%4.1f pictures/s  game %2.0f%%  draw core %2.0f%%   ", shown / s,
+                   100.0 - 100.0 * t_idle / (c - t_log), draw_core < 0 ? 100.0 * (t_render + t_present) / (c - t_log) : other);
             t_log = c; t_render = t_present = t_idle = 0; pictures = presents = 0;
+            draw_ticks = 0; drawn = 0;
         }
         (void)t_loop;
     }

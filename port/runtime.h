@@ -50,6 +50,8 @@ void cdrtos_kill(void);
 /* display.c - CD-i video chip state from the game's dc_* calls */
 void display_setstt(void);
 void display_render(uint32_t *out);   /* 384x280, 0x00RRGGBB */
+int display_snapshot(void);           /* copy what drawing needs (game thread); 0 = no memory for it */
+void display_render_snapshot(uint32_t *out);   /* draw that copy (another thread) */
 void display_report(void);
 void display_note_video(uint32_t buf, uint32_t bytes, int sector_format);  /* 4 = RL7, 5 = DYUV ... */void display_maybe_dump(void);
 void display_save_tables(void);

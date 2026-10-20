@@ -59,8 +59,17 @@ uint32_t once_signal;       /* dc_ssig: signal to send at the next field only (0
 /* Video buffers filled from the disc, with the sector coding they arrived in. A plane whose display
    start points into a buffer that received run-length (RL7, sector format 4) video is decoded as RL7. */
 #define NREGION 64
-static struct { uint32_t start, len; int fmt; } regions[NREGION];
+typedef struct { uint32_t start, len; int fmt; } Region;
+static Region regions[NREGION];
 static int region_next;
+
+/* What the drawing reads: normally the live state, but on the 3DS a copy taken when the game has finished a
+   picture (display_snapshot), so a second CPU core can draw it while the game carries on. */
+static const uint8_t *src_ram = RAM;
+static const uint32_t *src_fct[2];                    /* the plane's field table, or 0 */
+static const uint32_t (*src_lct[2])[LCT_COLS];        /* the plane's line table, or 0 */
+static const Region *src_regions = regions;
+#define SRC8(a) ((uint32_t)src_ram[(a) & RAM_MASK])
 
 /* A child program (the Philips logo) writes its own settings into the display tables while it runs. On a
    CD-i each program's video setup is its own, so when the child exits the parent's complete display state
@@ -125,8 +134,8 @@ static uint32_t region_end(uint32_t addr)
 {
     int i;
     for (i = 0; i < NREGION; i++)
-        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len)
-            return regions[i].start + regions[i].len;
+        if (src_regions[i].len && addr >= src_regions[i].start && addr < src_regions[i].start + src_regions[i].len)
+            return src_regions[i].start + src_regions[i].len;
     return 0;
 }
 
@@ -138,10 +147,10 @@ static int is_run_length(uint32_t addr)
 {
     int i, k;
     for (i = 0; i < NREGION; i++)
-        if (regions[i].len && addr >= regions[i].start && addr < regions[i].start + regions[i].len) {
-            if (regions[i].fmt != 4 && regions[i].fmt != 3) return 0;
+        if (src_regions[i].len && addr >= src_regions[i].start && addr < src_regions[i].start + src_regions[i].len) {
+            if (src_regions[i].fmt != 4 && src_regions[i].fmt != 3) return 0;
             for (k = 0; k < 2048; k++)
-                if (rd8(addr + k) & 0x80) return 1;
+                if (SRC8(addr + k) & 0x80) return 1;
             return 0;
         }
     return 0;
@@ -373,10 +382,10 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
         uint32_t s = a;
         x = 0;
         while (x < W) {
-            int b = (int)rd8(a++);
+            int b = (int)SRC8(a++);
             int n = 1;
             if (b & 0x80) {
-                n = (int)rd8(a++);
+                n = (int)SRC8(a++);
                 if (!n || x + n > W) n = W - x;
             }
             while (n-- > 0) rgb[x++] = vs.clut[clut_off + (b & 0x7F)];
@@ -392,7 +401,7 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
         /* Each pixel pair is two bytes: U delta | Y0 delta, then V delta | Y1 delta (high nibble = chroma).
            The sums wrap modulo 256 like the hardware's 8-bit adders; the encoder relies on that. */
         for (x = 0; x < W; x += 2) {
-            int b0 = (int)rd8(a + x), b1 = (int)rd8(a + x + 1), y0;
+            int b0 = (int)SRC8(a + x), b1 = (int)SRC8(a + x + 1), y0;
             U = (U + DQ[b0 >> 4]) & 255;
             y0 = (Y + DQ[b0 & 15]) & 255;
             V = (V + DQ[b1 >> 4]) & 255;
@@ -402,13 +411,13 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
         }
     } else if (coding == 0xB) {                         /* CLUT4 */
         for (x = 0; x < W; x += 2) {
-            int b = (int)rd8(a + x / 2);
+            int b = (int)SRC8(a + x / 2);
             rgb[x] = vs.clut[clut_off + (b >> 4)];
             rgb[x + 1] = vs.clut[clut_off + (b & 15)];
         }
     } else {                                            /* CLUT8 (1) / CLUT7 (3) */
         int mask = coding == 1 ? 255 : 127, off = coding == 1 ? 0 : clut_off;
-        for (x = 0; x < W; x++) rgb[x] = vs.clut[off + ((int)rd8(a + x) & mask)];
+        for (x = 0; x < W; x++) rgb[x] = vs.clut[off + ((int)SRC8(a + x) & mask)];
     }
     /* Transparency (MCD212 register 0xC1): a 4-bit condition per plane (A bits 0-3, B bits 8-11).
        Bits 0-2: 0 always, 1 colour key, 2 transparency bit (RGB555), 3/4 matte flag 0/1, 5/6 matte flag
@@ -444,16 +453,93 @@ static uint32_t draw_line(int p, uint32_t *rgb, uint8_t *opaque)
 
 static void run_fct(int p)
 {
-    int i, t = active_fct[p];
-    if (t < 0) return;
+    int i;
+    const uint32_t *t = src_fct[p];
+    if (!t) return;
     for (i = 0; i < FCT_SLOTS; i++) {
-        if ((fct[t][i] >> 24) != 0x10) instr(fct[t][i], p);
+        if ((t[i] >> 24) != 0x10) instr(t[i], p);
         else seen[0x10]++;
     }
 }
 
-/* Compose both planes over the backdrop into out[] (0x00RRGGBB, 384x280). */
+static void render_core(uint32_t *out);
+
+/* Compose both planes over the backdrop into out[] (0x00RRGGBB, 384x280), from the live state. */
 void display_render(uint32_t *out)
+{
+    int p;
+    src_ram = RAM;
+    src_regions = regions;
+    for (p = 0; p < 2; p++) {
+        src_fct[p] = active_fct[p] >= 0 ? fct[active_fct[p]] : 0;
+        src_lct[p] = active_lct[p] >= 0 ? (const uint32_t (*)[LCT_COLS])lct[active_lct[p]] : 0;
+    }
+    render_core(out);
+}
+
+/* ---- drawing on another core (3DS) ----
+   display_snapshot (game thread, when a picture is finished) copies what drawing reads: both planes' tables,
+   the list of streamed regions, and the memory the planes show, found from the display-start addresses in the
+   tables (0x40 instructions) plus where each plane started last frame. display_render_snapshot (drawing
+   thread) then draws from that copy, exactly the finished picture, while the game goes on. */
+#define SNAP_SPAN 0x30000u          /* bytes copied from each display start: enough for 280 lines of any coding */
+static struct {
+    uint32_t fct[2][FCT_SLOTS];
+    uint32_t lct[2][LCT_LINES][LCT_COLS];
+    int has_fct[2], has_lct[2];
+    Region regions[NREGION];
+} snap;
+static uint8_t *shadow;             /* RAM_SIZE bytes; only the copied ranges are meaningful */
+
+static int cmp_u32(const void *a, const void *b)
+{
+    uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
+    return x < y ? -1 : x > y;
+}
+
+int display_snapshot(void)
+{
+    static uint32_t starts[2 * (FCT_SLOTS + LCT_LINES * LCT_COLS) + 2];
+    int n = 0, p, i, j;
+    uint32_t lo = 0, hi = 0;
+    if (!shadow && !(shadow = malloc(RAM_SIZE))) return 0;
+    for (p = 0; p < 2; p++) {
+        snap.has_fct[p] = active_fct[p] >= 0;
+        snap.has_lct[p] = active_lct[p] >= 0;
+        if (snap.has_fct[p]) memcpy(snap.fct[p], fct[active_fct[p]], sizeof snap.fct[p]);
+        if (snap.has_lct[p]) memcpy(snap.lct[p], lct[active_lct[p]], sizeof snap.lct[p]);
+        if (snap.has_fct[p])
+            for (i = 0; i < FCT_SLOTS; i++)
+                if ((snap.fct[p][i] >> 28) == 4) starts[n++] = snap.fct[p][i] & 0xFFFFFF;
+        if (snap.has_lct[p])
+            for (i = 0; i < LCT_LINES; i++)
+                for (j = 0; j < LCT_COLS; j++)
+                    if ((snap.lct[p][i][j] >> 28) == 4) starts[n++] = snap.lct[p][i][j] & 0xFFFFFF;
+        if (frame_start[p]) starts[n++] = frame_start[p] & RAM_MASK;
+    }
+    memcpy(snap.regions, regions, sizeof snap.regions);
+    qsort(starts, (size_t)n, sizeof starts[0], cmp_u32);
+    for (i = 0; i <= n; i++) {                        /* copy the merged ranges [start, start + SNAP_SPAN) */
+        if (i < n && starts[i] <= hi && hi) { if (starts[i] + SNAP_SPAN > hi) hi = starts[i] + SNAP_SPAN; continue; }
+        if (hi) memcpy(shadow + lo, RAM + lo, (hi > RAM_SIZE ? RAM_SIZE : hi) - lo);
+        if (i < n) { lo = starts[i]; hi = starts[i] + SNAP_SPAN; }
+    }
+    return 1;
+}
+
+void display_render_snapshot(uint32_t *out)
+{
+    int p;
+    src_ram = shadow;
+    src_regions = snap.regions;
+    for (p = 0; p < 2; p++) {
+        src_fct[p] = snap.has_fct[p] ? snap.fct[p] : 0;
+        src_lct[p] = snap.has_lct[p] ? (const uint32_t (*)[LCT_COLS])snap.lct[p] : 0;
+    }
+    render_core(out);
+}
+
+static void render_core(uint32_t *out)
 {
     static uint32_t la[W], lb[W];
     static uint8_t oa[W], ob[W];
@@ -515,17 +601,17 @@ void display_render(uint32_t *out)
     }
     plane_rl[0] = plane_rl[1] = 0;
 #ifdef __3DS__
-    /* The 3DS shows lines 2-241 only (the TV crop): don't draw what can't be seen */
-    for (y = 0; y < 242; y++) {
+    /* The 3DS shows lines 2-240 only (the TV crop): don't draw what can't be seen */
+    for (y = 0; y < 241; y++) {
 #else
     for (y = 0; y < H; y++) {
 #endif
         uint32_t used[2];
         for (p = 0; p < 2; p++) {
             uint32_t before = vs.line_addr[p];
-            if (active_lct[p] >= 0 && y < LCT_LINES)
+            if (src_lct[p] && y < LCT_LINES)
                 for (c = 0; c < LCT_COLS; c++) {
-                    uint32_t v = lct[active_lct[p]][y][c];
+                    uint32_t v = src_lct[p][y][c];
                     if ((v >> 24) != 0x10) instr(v, p);        /* most slots are "no operation" */
                     else seen[0x10]++;
                 }

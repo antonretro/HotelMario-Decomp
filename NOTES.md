@@ -189,7 +189,7 @@ had it the other way round, so nothing was heard. With the fix:
   cutscenes carry on instead of racing through seconds of "overdue" sectors.
 - Run-length detection needs run markers in the data (bit 7); the stage's sprite layer sits on an old
   cutscene buffer and must not be treated as run-length (it flickered).
-- Picture crop "TV" = lines 2-241: the intro/cutscene pictures are 240 lines; the title and stages add 20
+- Picture crop "TV" = lines 2-240 (line 241 already shows the strip below the pictures, a 1-pixel line at the bottom); the title and stages add 20
   lines of PAL-only art below.
 - **Fades read the screen brightness first.** `fade`/`unfade` call `dc_rdfi` (SetStt 0x56 sub 3) on FCT
   slot 4 and skip the fade when the screen is already black / lit. Unanswered, a second fade ran from full

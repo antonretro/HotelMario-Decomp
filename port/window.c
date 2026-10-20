@@ -22,12 +22,12 @@
 
 /* The visible area. The player puts out 280 lines (PAL), but the game switches its pictures on at line 2 and
    they run out after ~262 lines (below that the chip shows whatever memory follows), and a TV's bezel hid
-   more still. settings.tv_crop: 0 = all 280 lines, 1 = edges only (2-261), 2 = like a TV (2-241, the
-   default): exactly 240 lines, the picture an NTSC player showed. The intro and cutscene pictures are 240
+   more still. settings.tv_crop: 0 = all 280 lines, 1 = edges only (2-261), 2 = like a TV (2-240, the
+   default): the picture an NTSC player showed; line 241 is already the strip below the pictures. The intro and cutscene pictures are 240
    lines and end in a bar below that; the title and stages draw 20 more lines of PAL-only extra art.
    --full-frame shows all 280 whatever the setting. */
 int full_frame;
-static int vis_top = 2, vis_h = 240;
+static int vis_top = 2, vis_h = 239;
 
 static SDL_Window *win;
 static SDL_Renderer *ren;
@@ -53,7 +53,7 @@ static void apply_settings(int resize)
     int vh;
     full_frame = cli_full_frame || !settings.tv_crop;
     vis_top = full_frame ? 0 : 2;
-    vis_h = full_frame ? H : settings.tv_crop == 1 ? 260 : 240;
+    vis_h = full_frame ? H : settings.tv_crop == 1 ? 260 : 239;
     vh = vis_h;
     SDL_SetWindowFullscreen(win, settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
     if (resize && !settings.fullscreen) {
@@ -83,7 +83,7 @@ void window_init(void)
         return;
     }
     win = SDL_CreateWindow("Hotel Mario (CD-i) - decomp port  [F1: settings]", SDL_WINDOWPOS_CENTERED,
-                           SDL_WINDOWPOS_CENTERED, W * settings.scale, 240 * settings.scale, SDL_WINDOW_RESIZABLE);
+                           SDL_WINDOWPOS_CENTERED, W * settings.scale, 239 * settings.scale, SDL_WINDOW_RESIZABLE);
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
     audio_init();
