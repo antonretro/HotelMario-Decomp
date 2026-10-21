@@ -89,6 +89,8 @@ static void deliver(uint32_t sig)
     cpu = saved;
 }
 
+void cdrtos_sound_signal(uint32_t sig) { deliver(sig); }
+
 void cdrtos_rte(void)   /* F$RTE: leave the intercept routine */
 {
     if (in_handler) longjmp(rte_jmp, 1);

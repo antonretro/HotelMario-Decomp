@@ -45,6 +45,7 @@ void cdrtos_play(FILE *f, uint32_t pcb);
 void cdrtos_stop(void);
 void cdrtos_pause(int paused);
 void cdrtos_rte(void);
+void cdrtos_sound_signal(uint32_t sig);
 void cdrtos_kill(void);
 
 /* display.c - CD-i video chip state from the game's dc_* calls */

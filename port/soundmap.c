@@ -53,8 +53,25 @@ static void play_sector(int i)
 {
     if (!maps[i].sectors) return;
     audio_sector(RAM + ((maps[i].data + (uint32_t)maps[i].pos * 18 * GROUP) & RAM_MASK), coding_of(maps[i].type));
-    maps[i].pos = (maps[i].pos + 1) % maps[i].sectors;
+    maps[i].pos++;
     maps[i].fresh = 0;
+    wr32(maps[i].desc + 0x12, maps[i].data + (uint32_t)maps[i].pos * 18 * GROUP);
+    if (maps[i].pos == maps[i].sectors) {
+        /* The game edits this descriptor directly: bonus() clears the loop fields before
+           sm_out() to play a single coin sound. Do not silently loop that sound forever. */
+        int count = (int16_t)rd16(maps[i].desc + 0x06);
+        if (count < 0 || rd16(maps[i].desc + 0x08) < (uint32_t)count) {
+            maps[i].pos = 0;       /* Hotel Mario uses a single-sector, whole-map loop. */
+            if (count > 0) wr16(maps[i].desc + 0x08, rd16(maps[i].desc + 0x08) + 1);
+        } else {
+            maps[i].playing = 0;
+            if (maps[i].statblk) {
+                uint32_t sig = rd16(maps[i].statblk + 2);
+                wr16(maps[i].statblk, 1);  /* ASY_Stat bit 0: last sector sent to the audio processor */
+                if (sig) cdrtos_sound_signal(sig);
+            }
+        }
+    }
 }
 
 int soundmap_setstt(uint32_t fn)
@@ -91,9 +108,12 @@ int soundmap_setstt(uint32_t fn)
     if (fn == 0x3b && sub == 1 && i >= 0) {         /* sm_out: start playing */
         maps[i].playing = 1;
         maps[i].pos = 0;
+        wr16(maps[i].desc + 0x08, 0);
         maps[i].statblk = cpu.a[0];
         maps[i].next = game_clock();
         maps[i].fresh = 1;
+        wr32(maps[i].desc + 0x16, maps[i].statblk);
+        wr32(maps[i].desc + 0x12, maps[i].data);
         if (maps[i].statblk) wr16(maps[i].statblk, 0);           /* asy_stat: running */
         if (trace) fprintf(stderr, "  [snd] sm_out map %d\n", id);
         return 1;
@@ -108,6 +128,10 @@ int soundmap_setstt(uint32_t fn)
         return 1;
     }
     if (fn == 0x3c && sub == 2 && i >= 0) {         /* sd_loop: the map loops; only whole-map loops are used */
+        wr16(maps[i].desc + 0x02, cpu.d[4]);
+        wr16(maps[i].desc + 0x04, cpu.d[5]);
+        wr16(maps[i].desc + 0x06, cpu.d[6]);
+        wr16(maps[i].desc + 0x08, 0);
         if (trace) fprintf(stderr, "  [snd] sd_loop map %d groups %d-%d count %d\n", id, (int)(cpu.d[4] & 0xFFFF),
                            (int)(cpu.d[5] & 0xFFFF), (int16_t)cpu.d[6]);
         return 1;
