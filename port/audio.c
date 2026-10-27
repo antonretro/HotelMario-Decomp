@@ -15,6 +15,10 @@
 #else
 #define OUT_RATE 44100
 #endif
+/* The rate asked for; the device may choose another (SDL_AUDIO_ALLOW_FREQUENCY_CHANGE), and the decoded sound
+   is converted to whatever it plays at. Converting to OUT_RATE regardless would play everything too high on a
+   48 kHz device. */
+static int out_rate = OUT_RATE;
 
 static SDL_AudioDeviceID dev;
 static int volume = 10;     /* 0-10, from the settings menu */
@@ -25,7 +29,8 @@ static uint32_t wav_bytes;
 static void wav_header(void)
 {
     uint8_t h[44];
-    uint32_t v[] = { 36 + wav_bytes, 16, 1 | (2u << 16), OUT_RATE, OUT_RATE * 4, 4 | (16u << 16), wav_bytes };
+    uint32_t v[] = { 36 + wav_bytes, 16, 1 | (2u << 16), (uint32_t)out_rate, (uint32_t)out_rate * 4, 4 | (16u << 16),
+                     wav_bytes };
     memcpy(h, "RIFF", 4); memcpy(h + 4, &v[0], 4); memcpy(h + 8, "WAVEfmt ", 8); memcpy(h + 16, &v[1], 4);
     memcpy(h + 20, &v[2], 4); memcpy(h + 24, &v[3], 4); memcpy(h + 28, &v[4], 4); memcpy(h + 32, &v[5], 4);
     memcpy(h + 36, "data", 4); memcpy(h + 40, &v[6], 4);
@@ -58,6 +63,8 @@ void audio_init(void)
     want.samples = 2048;
     dev = SDL_OpenAudioDevice(0, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (!dev) { fprintf(stderr, "SDL audio: %s - no sound\n", SDL_GetError()); return; }
+    out_rate = have.freq;
+    if (wav) wav_header();                   /* the WAV records at the same rate */
     SDL_PauseAudioDevice(dev, 0);
 }
 
@@ -101,7 +108,7 @@ void audio_sector(const uint8_t *payload, int coding)
     if ((!dev && !wav) || (coding & 0x30)) return;  /* 8-bit level A is not used by this disc */
     if (!stream || rate != stream_rate || ch != stream_ch) {
         if (stream) SDL_FreeAudioStream(stream);
-        stream = SDL_NewAudioStream(AUDIO_S16SYS, (Uint8)ch, rate, AUDIO_S16SYS, 2, OUT_RATE);
+        stream = SDL_NewAudioStream(AUDIO_S16SYS, (Uint8)ch, rate, AUDIO_S16SYS, 2, out_rate);
         stream_rate = rate;
         stream_ch = ch;
         memset(hist, 0, sizeof hist);
@@ -120,7 +127,7 @@ void audio_sector(const uint8_t *payload, int coding)
                 for (i = 0; i < got / 2; i++) s[i] = (int16_t)(s[i] * volume / 10);
             }
             /* keep latency bounded: if more than half a second is waiting, drop the oldest */
-            if (SDL_GetQueuedAudioSize(dev) > OUT_RATE * 4 / 2) SDL_ClearQueuedAudio(dev);
+            if (SDL_GetQueuedAudioSize(dev) > (Uint32)out_rate * 4 / 2) SDL_ClearQueuedAudio(dev);
             SDL_QueueAudio(dev, buf, (Uint32)got);
         }
     }

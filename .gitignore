@@ -17,3 +17,4 @@ saves/
 
 # progress site: hosted on Anthony's own website, kept out of the repository
 site/
+*.o
