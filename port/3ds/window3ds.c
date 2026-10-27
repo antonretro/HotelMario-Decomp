@@ -9,6 +9,7 @@
  * Buttons: d-pad / circle pad = move, A = button 1, B = button 2, START + SELECT = quit.
  */
 #include <3ds.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +43,7 @@ static int draw_core = -1;          /* -1 = drawing on the game's core */
 static volatile u64 draw_ticks;
 static volatile unsigned drawn;
 static void present(const uint32_t *fb);
+void window_note(const char *fmt, ...);
 
 static void drawer(void *unused)
 {
@@ -69,7 +71,8 @@ static void start_drawer(void)
         APT_SetAppCpuTimeLimit(80);                 /* an original 3DS lends core 1 to games, up to 80% */
         if (threadCreate(drawer, 0, 32 * 1024, prio + 1, 1, true)) draw_core = 1;
     }
-    printf(draw_core >= 0 ? "Drawing on CPU core %d\n" : "Drawing on the game's core\n", draw_core);
+    if (draw_core >= 0) window_note("Drawing on CPU core %d\n", draw_core);
+    else window_note("Drawing on the game's core\n");
 }
 
 clock_t port_clock(void)
@@ -78,17 +81,67 @@ clock_t port_clock(void)
     return (clock_t)(osGetTime() - start_ms);
 }
 
+/* The bottom screen: a picture (sdmc:/3ds/HotelMario/bottom.bin, 320x240 RGB, made by tools/make_3ds_art.py from
+   your disc's own title screen) or, after SELECT, the info screen: these messages and the speed line. The screen
+   stays in the text console's format (RGB565, one buffer), so either can be drawn at any time. */
+static char notes[1024];
+static int info_shown = 1;
+static u8 *bottom_pic;
+
+void window_note(const char *fmt, ...)
+{
+    va_list ap;
+    size_t n = strlen(notes);
+    va_start(ap, fmt);
+    vsnprintf(notes + n, sizeof notes - n, fmt, ap);
+    va_end(ap);
+    if (info_shown) printf("%s", notes + n);
+}
+
+static void show_info(void)
+{
+    consoleInit(GFX_BOTTOM, 0);         /* clears it */
+    info_shown = 1;
+    printf("%s", notes);
+}
+
+static void show_picture(void)
+{
+    u16 *fb = (u16 *)gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, 0, 0);
+    int x, y;
+    info_shown = 0;
+    for (x = 0; x < 320; x++)           /* stored rotated: one 240-pixel column per x, bottom to top */
+        for (y = 0; y < 240; y++) {
+            const u8 *s = bottom_pic + (y * 320 + x) * 3;
+            fb[x * 240 + 239 - y] = (u16)((s[0] >> 3) << 11 | (s[1] >> 2) << 5 | (s[2] >> 3));
+        }
+    GSPGPU_FlushDataCache(fb, 320 * 240 * 2);
+}
+
+static void load_picture(void)
+{
+    FILE *f = fopen("sdmc:/3ds/HotelMario/bottom.bin", "rb");
+    if (!f) return;
+    bottom_pic = malloc(320 * 240 * 3);
+    if (bottom_pic && fread(bottom_pic, 1, 320 * 240 * 3, f) != 320 * 240 * 3) { free(bottom_pic); bottom_pic = 0; }
+    fclose(f);
+}
+
 void window_init(void)
 {
+    extern int audio_ok;
     settings_load();
     osSetSpeedupEnable(true);           /* New 3DS: 804 MHz and the L2 cache (no effect on an original 3DS) */
     gfxInitDefault();
     gfxSetDoubleBuffering(GFX_TOP, true);
     consoleInit(GFX_BOTTOM, 0);
-    printf("Hotel Mario (CD-i) - 3DS port\nPort by Anton Retro\n\nA = button 1, B = button 2\nSTART + SELECT = quit\n\n");
+    window_note("Hotel Mario (CD-i) - 3DS port\nPort by Anton Retro\n\nA = button 1, B = button 2\n"
+                "SELECT = this screen / picture\nSTART + SELECT = quit\n\n");
     audio_init();
     audio_set_volume(settings.volume);
     start_drawer();
+    load_picture();
+    if (bottom_pic && audio_ok) show_picture();   /* a sound problem keeps the info screen up, so it's seen */
 }
 
 static void present(const uint32_t *fb)
@@ -119,6 +172,10 @@ static void read_input(void)
     hidScanInput();
     k = hidKeysHeld();
     if ((k & KEY_START) && (k & KEY_SELECT)) exit(0);
+    if ((hidKeysDown() & KEY_SELECT) && !(k & KEY_START) && bottom_pic) {   /* flip the bottom screen */
+        if (info_shown) show_picture();
+        else show_info();
+    }
     if (k & KEY_LEFT) dx -= 3;      /* KEY_LEFT etc. cover both the d-pad and the circle pad */
     if (k & KEY_RIGHT) dx += 3;
     if (k & KEY_UP) dy -= 3;
@@ -170,7 +227,7 @@ void window_tick(void)
                     100.0 * t_render / (c - t_log), other, 100.0 * t_present / (c - t_log), 100.0 * t_idle / (c - t_log),
                     100.0 - 100.0 * (t_render + t_present + t_idle) / (c - t_log));
             /* and on the bottom screen, so the speed can be read off a real console */
-            printf("\x1b[28;0H%4.1f pictures/s  game %2.0f%%  draw core %2.0f%%   ", shown / s,
+            if (info_shown) printf("\x1b[28;0H%4.1f pictures/s  game %2.0f%%  draw core %2.0f%%   ", shown / s,
                    100.0 - 100.0 * t_idle / (c - t_log), draw_core < 0 ? 100.0 * (t_render + t_present) / (c - t_log) : other);
             t_log = c; t_render = t_present = t_idle = 0; pictures = presents = 0;
             draw_ticks = 0; drawn = 0;

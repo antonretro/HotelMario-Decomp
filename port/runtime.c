@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "m68k.h"
 #include "runtime.h"
@@ -148,6 +149,13 @@ int main(int argc, char **argv)
             if (freopen("sdmc:/3ds/HotelMario/log.txt", "w", stderr)) setvbuf(stderr, 0, _IOLBF, 0);
         }
     }
+#endif
+#ifdef __WIIU__
+    mkdir("fs:/vol/external01/wiiu", 0777);
+    mkdir("fs:/vol/external01/wiiu/apps", 0777);
+    mkdir("fs:/vol/external01/wiiu/apps/hotelmario", 0777);
+    freopen("fs:/vol/external01/wiiu/apps/hotelmario/log.txt", "w", stderr);
+    setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--trace")) trace = 1;

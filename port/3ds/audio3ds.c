@@ -14,7 +14,9 @@
 #define SECTOR_SAMPLES (18 * 8 * 28)
 
 const char *wav_path;               /* --wav isn't available on the 3DS */
-static int ok, volume = 10, cur_rate, cur_ch;
+int audio_ok;                       /* window3ds.c keeps the info screen up when sound failed */
+static int volume = 10, cur_rate, cur_ch;
+void window_note(const char *fmt, ...);
 static ndspWaveBuf wbuf[NBUF];
 static int16_t *pcm[NBUF];
 static int next;
@@ -27,7 +29,7 @@ static const int K1[4] = { 0, 0, -52, -55 };
 void audio_init(void)
 {
     int i;
-    if (R_FAILED(ndspInit())) { printf("No sound: DSP firmware missing (run DSP1 once)\n"); return; }
+    if (R_FAILED(ndspInit())) { window_note("No sound: DSP firmware missing (run DSP1 once)\n"); return; }
     ndspSetOutputMode(NDSP_OUTPUT_STEREO);
     for (i = 0; i < NBUF; i++) {
         pcm[i] = linearAlloc(SECTOR_SAMPLES * sizeof(int16_t));
@@ -35,7 +37,7 @@ void audio_init(void)
         wbuf[i].data_vaddr = pcm[i];
         wbuf[i].status = NDSP_WBUF_DONE;
     }
-    ok = 1;
+    audio_ok = 1;
 }
 
 static void set_format(int rate, int ch)
@@ -87,7 +89,7 @@ void audio_sector(const uint8_t *payload, int coding)
     int rate = (coding & 0x04) ? 18900 : 37800, ch = (coding & 0x01) ? 2 : 1, n;
     ndspWaveBuf *b;
     sectors_played++;
-    if (!ok || (coding & 0x30)) return;
+    if (!audio_ok || (coding & 0x30)) return;
     if (rate != cur_rate || ch != cur_ch) set_format(rate, ch);
     b = &wbuf[next];
     if (b->status != NDSP_WBUF_DONE && b->status != NDSP_WBUF_FREE) {   /* queue full: drop the oldest */
@@ -104,18 +106,18 @@ void audio_sector(const uint8_t *payload, int coding)
 void audio_set_volume(int v)
 {
     volume = v < 0 ? 0 : v > 10 ? 10 : v;
-    if (ok && cur_rate) {
+    if (audio_ok && cur_rate) {
         float mix[12] = { 0 };
         mix[0] = mix[1] = volume / 10.0f;
         ndspChnSetMix(0, mix);
     }
 }
 
-void audio_pause(int paused) { if (ok) ndspChnSetPaused(0, paused); }
+void audio_pause(int paused) { if (audio_ok) ndspChnSetPaused(0, paused); }
 
 void audio_stop(void)
 {
-    if (ok && cur_rate) ndspChnWaveBufClear(0);
+    if (audio_ok && cur_rate) ndspChnWaveBufClear(0);
     memset(hist, 0, sizeof hist);
 }
 

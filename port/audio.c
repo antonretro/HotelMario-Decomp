@@ -10,7 +10,11 @@
 #include "m68k.h"
 #include "runtime.h"
 
+#ifdef __WIIU__
+#define OUT_RATE 48000
+#else
 #define OUT_RATE 44100
+#endif
 
 static SDL_AudioDeviceID dev;
 static int volume = 10;     /* 0-10, from the settings menu */
@@ -52,7 +56,7 @@ void audio_init(void)
     want.format = AUDIO_S16SYS;
     want.channels = 2;
     want.samples = 2048;
-    dev = SDL_OpenAudioDevice(0, 0, &want, &have, 0);
+    dev = SDL_OpenAudioDevice(0, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (!dev) { fprintf(stderr, "SDL audio: %s - no sound\n", SDL_GetError()); return; }
     SDL_PauseAudioDevice(dev, 0);
 }

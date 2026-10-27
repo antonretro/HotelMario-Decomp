@@ -82,9 +82,17 @@ void window_init(void)
         headless = 1;
         return;
     }
+#ifdef __WIIU__
+    SDL_DisplayMode dm;
+    int ww = 1280, wh = 720;
+    if (SDL_GetCurrentDisplayMode(0, &dm) == 0 && dm.w > 0) { ww = dm.w; wh = dm.h; }
+    win = SDL_CreateWindow("Hotel Mario", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, ww, wh, 0);
+#else
     win = SDL_CreateWindow("Hotel Mario (CD-i) - decomp port  [F1: settings]", SDL_WINDOWPOS_CENTERED,
                            SDL_WINDOWPOS_CENTERED, W * settings.scale, 239 * settings.scale, SDL_WINDOW_RESIZABLE);
+#endif
     ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!pad && SDL_NumJoysticks() > 0) pad = SDL_GameControllerOpen(0);
     tex = SDL_CreateTexture(ren, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, W, H);
     audio_init();
     apply_settings(1);
