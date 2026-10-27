@@ -27,23 +27,21 @@ def outlined(draw, xy, text, font, fill, outline=(24, 14, 20), width=3, anchor="
 
 
 def bottom(title, walk, jump):
+    """Plain black: the controls, and the credit underneath. Nothing from the game."""
     w, h = 320, 240
-    sky = title.getpixel((10, 60))
-    img = Image.new("RGBA", (w, h), sky + (255,))
-    top = title.crop((24, 8, 360, 104))                      # sky and the HOTEL MARIO logo
-    img.paste(top.resize((w, round(96 * w / 336)), Image.LANCZOS), (0, 0))
-    ground = title.crop((24, 189, 360, 241))                 # the title screen's grass, path and river
-    gh = round(52 * w / 336)
-    img.paste(ground.resize((w, gh), Image.LANCZOS), (0, h - gh))
+    img = Image.new("RGB", (w, h), (0, 0, 0))
     d = ImageDraw.Draw(img)
-    big = ImageFont.truetype(FONT, 15)
-    small = ImageFont.truetype(FONT, 12)
-    outlined(d, (w // 2, 106), "3DS port by Anton Retro", big, (255, 242, 122))
-    outlined(d, (w // 2, 130), "A  button 1      B  button 2", small, (255, 255, 255), width=2)
-    outlined(d, (w // 2, 147), "SELECT  info      START + SELECT  quit", small, (255, 255, 255), width=2)
-    img.alpha_composite(walk.resize((48, 51), Image.NEAREST), (36, h - 62))
-    img.alpha_composite(jump.resize((48, 51), Image.NEAREST), (236, h - 84))
-    return img.convert("RGB")
+    key = ImageFont.truetype(FONT, 15)
+    small = ImageFont.truetype(FONT, 11)
+    rows = [("A", "Button 1"), ("B", "Button 2"), ("Circle Pad / D-Pad", "Move"),
+            ("SELECT", "Info"), ("START + SELECT", "Quit")]
+    y = 52
+    for k, what in rows:
+        d.text((w // 2 - 8, y), k, font=key, fill=(255, 255, 255), anchor="rm")
+        d.text((w // 2 + 8, y), what, font=key, fill=(150, 150, 150), anchor="lm")
+        y += 26
+    d.text((w // 2, h - 18), "Port by Anton Retro", font=small, fill=(110, 110, 110), anchor="mm")
+    return img
 
 
 def banner(title, walk, jump):
