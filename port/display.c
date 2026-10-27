@@ -65,7 +65,7 @@ static int region_next;
 
 /* What the drawing reads: normally the live state, but on the 3DS a copy taken when the game has finished a
    picture (display_snapshot), so a second CPU core can draw it while the game carries on. */
-static const uint8_t *src_ram = RAM;
+static const uint8_t *src_ram;      /* set by display_render / display_render_snapshot before drawing */
 static const uint32_t *src_fct[2];                    /* the plane's field table, or 0 */
 static const uint32_t (*src_lct[2])[LCT_COLS];        /* the plane's line table, or 0 */
 static const Region *src_regions = regions;

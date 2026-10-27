@@ -173,6 +173,20 @@ static int ticker(void *unused)
     return 0;
 }
 #endif
+#ifdef GEKKO
+#include <gccore.h>
+#include <unistd.h>
+/* Wii / GameCube: the same tick thread, at a higher priority than the game */
+static void *ticker(void *unused)
+{
+    (void)unused;
+    for (;;) {
+        os9_tick();
+        usleep(2000);
+    }
+    return 0;
+}
+#endif
 unsigned press_every;               /* --press N: simulate a button press every N pointer polls */
 static int nvr_errno_check;          /* debug: report errno after a failed save open */
 
@@ -240,6 +254,12 @@ void os9_init(void)
 #endif
 #ifdef __WIIU__
     SDL_CreateThread(ticker, "ticker", NULL);
+#endif
+#ifdef GEKKO
+    {
+        lwp_t th;
+        LWP_CreateThread(&th, ticker, 0, 0, 0, 100);
+    }
 #endif
     _mkdir("saves");                     /* the NVRAM: hotel_mario holds the high scores and saved games */
     paths[0].f = stdin;

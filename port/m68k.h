@@ -19,7 +19,11 @@ typedef struct {
 } Cpu;
 
 extern Cpu cpu;
+#ifdef GEKKO
+extern uint8_t *RAM;              /* Wii / GameCube: placed by port/ogc (the Wii's MEM2), not in the program image */
+#else
 extern uint8_t RAM[RAM_SIZE];
+#endif
 
 #define D(n) cpu.d[n]
 #define A(n) cpu.a[n]

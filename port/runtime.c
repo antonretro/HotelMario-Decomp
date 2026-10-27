@@ -14,7 +14,9 @@
 #include "runtime.h"
 
 Cpu cpu;
+#ifndef GEKKO
 uint8_t RAM[RAM_SIZE];
+#endif
 uint8_t program_copy[0x40000];   /* the program as loaded from the disc, before the game ran */
 uint32_t program_size;
 
