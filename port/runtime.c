@@ -17,7 +17,11 @@ Cpu cpu;
 #ifndef GEKKO
 uint8_t RAM[RAM_SIZE];
 #endif
+#ifdef __NDS__
+uint8_t program_copy[4];         /* no room for a second copy on the DS, and only crash reports read it */
+#else
 uint8_t program_copy[0x40000];   /* the program as loaded from the disc, before the game ran */
+#endif
 uint32_t program_size;
 
 extern const struct { uint32_t addr; RecompFn fn; const char *name; } recomp_table[];
@@ -175,7 +179,12 @@ int main(int argc, char **argv)
 
     /* program module at address 0, initialised data from the cdi_hotel_data module */
     program_size = (uint32_t)load_file("cdi_hotel", RAM, 0x40000);
+#ifdef __NDS__
+    /* The module's first long says where the OS-9 system globals are (os9_tick): moved into the small DS memory */
+    wr32(0, SYSGLOB);
+#else
     memcpy(program_copy, RAM, program_size);     /* untouched copy of the program (see interp.c) */
+#endif
     load_file("cdi_hotel_data", datamod, sizeof datamod);
     off = (datamod[0x44] << 24) | (datamod[0x45] << 16) | (datamod[0x46] << 8) | datamod[0x47];
     size = (datamod[0x48] << 24) | (datamod[0x49] << 16) | (datamod[0x4a] << 8) | datamod[0x4b];

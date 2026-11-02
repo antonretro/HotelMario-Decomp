@@ -9,9 +9,11 @@
 
 #include <stdint.h>
 
+#ifndef RAM_SIZE                   /* the DS sets its own (port/ds/ds_prefix.h) */
 #define RAM_SIZE   0x1000000u
 #define RAM_MASK   (RAM_SIZE - 1)
 #define DATA_BASE  0x100000u
+#endif
 
 typedef struct {
     uint32_t d[8], a[8];

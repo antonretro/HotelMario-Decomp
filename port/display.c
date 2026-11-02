@@ -29,7 +29,9 @@
 
 #define W 384
 #define H 280
+#ifndef NTAB
 #define NTAB 32
+#endif
 #define FCT_SLOTS 256
 #define LCT_LINES 320
 #define LCT_COLS 8

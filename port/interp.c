@@ -13,7 +13,9 @@
 #include "runtime.h"
 #include "../tools/ext/Musashi/m68k.h"     /* Musashi's API */
 
+#ifndef SENTINEL
 #define SENTINEL 0xFFF000u                 /* interpreted calls return here */
+#endif
 
 static int ready, running, done;
 static int nest_depth;                     /* interpreted calls running inside another (see interp_call) */
@@ -164,6 +166,26 @@ void interp_dump_history(void)
     }
 }
 
+#ifdef __NDS__
+/* The DS has no time for the debugging below, which runs on every instruction: only what the game needs */
+void interp_hook(unsigned int pc)
+{
+    if (pc == SENTINEL) {
+        done = 1;
+        m68k_end_timeslice();
+        return;
+    }
+    if (isig.pending && !isig.active && !nest_depth) {
+        start_signal(pc);
+        return;
+    }
+    if (!(++hook_count & 1023)) {          /* often enough to catch the screen's blank period (window_ds.c) */
+        from_musashi();
+        rt_poll();
+        to_musashi();
+    }
+}
+#else
 void interp_hook(unsigned int pc)
 {
     static unsigned real_hist[64], real_n;     /* the last instructions that weren't blank memory */
@@ -267,6 +289,7 @@ void interp_hook(unsigned int pc)
         to_musashi();
     }
 }
+#endif
 
 /* A nested call: interpreted code is running (a streamed module), a signal arrives, the game's
    recompiled handler calls a routine in another streamed module. Musashi isn't re-entrant, but its whole

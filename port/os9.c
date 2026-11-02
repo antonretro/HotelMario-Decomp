@@ -30,8 +30,11 @@
 typedef struct { FILE *f; int device; char name[128]; } Path;
 static Path paths[MAXPATH];
 
-static uint32_t heap = 0x200000;   /* memory handed out by F$SRqMem / F$Link */
+#ifndef HEAP_START                  /* the DS sets its own (port/ds/ds_prefix.h) */
+#define HEAP_START 0x200000u
 #define HEAP_END 0xF00000u          /* above it: the system globals below */
+#endif
+static uint32_t heap = HEAP_START;  /* memory handed out by F$SRqMem / F$Link */
 
 /* OS-9 system globals. The game reads the tick counter straight from memory instead of calling F$Time,
    in two ways that only agree if the first long of the globals points back to the globals:
@@ -310,6 +313,8 @@ static void io_open(int create)
         static const char csd[] = "1:/ptr:\r2:/snd:\r3:/vid:\r4:/nvr:\r11:/ptr2:\r";
 #ifdef __3DS__
         paths[p].f = fmemopen((void *)csd, sizeof csd - 1, "r");   /* no temporary files on the 3DS */
+#elif defined(__NDS__)
+        paths[p].f = disc_fmemopen(csd, sizeof csd - 1);           /* nor on the DS */
 #else
         paths[p].f = tmpfile();
         fwrite(csd, 1, sizeof csd - 1, paths[p].f);
