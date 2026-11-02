@@ -323,7 +323,7 @@ static int text_start(int x, int pa)
 /* Where the text is. 0 = this picture isn't one to treat as text. */
 static int find_text(int was)
 {
-    static int x_from, x_to;
+    static int x_from, x_to, text_wait;
     uint32_t a = vs.line_addr[0];
     int x0 = W, x1 = -1, y0 = BOTTOM_LINE, y1 = -1, y, x, w, centre, row;
     for (y = TOP_LINE; y < BOTTOM_LINE; y += 2, a += W * 2)
@@ -342,6 +342,9 @@ static int find_text(int was)
     }
     ds_menu_reset = 0;
     if (x1 < 0) return 0;
+    /* One picture isn't enough to go on: as a stage starts, its score bar is up just before mario() first runs */
+    if (was != VIEW_TEXT && ++text_wait < 2) return 0;
+    text_wait = 0;
     if (x0 < box_x0) box_x0 = x0;
     if (x1 > box_x1) box_x1 = x1;
     if (y0 < box_y0) box_y0 = y0;

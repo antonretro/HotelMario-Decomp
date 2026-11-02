@@ -100,7 +100,8 @@ out: a smaller interpreter, or recompiling the modules that matter.
   video hardware: Philips logo, Fantasy Factory, intro cartoon, title, menu and Stage 1, drawn at 256 x 192.
   Two 90-second runs, no crashes.
 - `tools/build_ds.py` links, and the shared files still compile for PC and 3DS.
-- In melonDS, the `.nds` boots and plays, the Philips logo is smooth, and the zoom and text look right.
+- In melonDS, the `.nds` boots and plays, the Philips logo is smooth, the zoom and text look right, and menu backgrounds
+  stay full-size under the sharp text.
 - In the same PC build: the views in the menus and in a stage, and the save file: written to the card, and loaded by the next
   boot. With nowhere to write, the "memory is full" screen is gone.
 
