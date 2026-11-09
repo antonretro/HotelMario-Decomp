@@ -100,6 +100,22 @@ the cutscene soundtracks in `voices/`, each music channel in `music/`. `python -
 (needs faster-whisper) then cuts the cutscenes into one file per spoken line, named after what's said, with
 a list in `voices/lines.txt`. The clips are game audio from your own disc: never commit or share them.
 
+## Releases
+
+The release on GitHub is a zip with a setup program (`Hotel Mario setup.exe`) and the PC port. Neither has
+anything from the game inside:
+- the setup program asks for your disc image, checks its SHA-1, and extracts the game's files from it
+  (`tools/patcher/patcher.c`)
+- the release build of the port has no translated game code: the game's own program, `cdi_hotel` as read
+  from your disc, runs unchanged on the Musashi 68000 interpreter (`python -I tools/build_port.py --release`)
+
+`python -I tools/make_release.py <version>` builds both and makes the zip in `build/release/`. It refuses to
+make the zip if any file in it contains a piece of the game's program.
+
+The 3DS, DS and Android builds aren't in the release yet: their builds still have the game's program
+translated into them, so they can't be shared. The 3DS and DS are likely too slow for the interpreter;
+Android hasn't been tried with it.
+
 ## Notes
 
 - [NOTES.md](NOTES.md): file formats, compiler identification, and how each port problem was solved.

@@ -476,10 +476,12 @@ static void fork_child(void)
     cdrtos_set_intercept(0, 0);
     display_save_tables();
     in_child = 1;
+    interp_fork_begin();                                    /* an interpreted parent: put its state aside */
     if (!setjmp(child_exit))
         interp_call(m + exec);
     in_child = 0;
     interp_reset();
+    interp_fork_end();                                      /* and bring it back */
     field_signal = 0;                                       /* the child's per-field signal ends with it */
     cdrtos_kill();                                          /* so does any playback it left running */
     display_restore_tables();                               /* and the game's own display tables return */
@@ -503,6 +505,15 @@ static void link_module(void)
     /* already in memory (F$Load puts every module of a file there, e.g. cdi_bumpdata after cdi_bumper)? */
     base = strrchr(name, '/');
     base = base ? base + 1 : name;
+    if (!strcmp(base, "cdi_hotel_data")) {
+        /* _cstart's own set-up (loc_1aa) loading the program's initialised data: runtime.c's main() has done that
+           already, with the program at address 0. In the recompiled build this call gets a garbage name and fails;
+           on the interpreter it finds the real one, and would load a second copy of the program and point every
+           code pointer at it. Fail it the same way. */
+        fprintf(stderr, "  [os9] link %s: already set up\n", name);
+        fail(E_MNF);
+        return;
+    }
     for (i = nmods - 1; i >= 0; i--)
         if (!strcmp(mods[i].name, base)) {
             m = mods[i].addr;

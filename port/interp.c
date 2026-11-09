@@ -291,11 +291,56 @@ void interp_hook(unsigned int pc)
 }
 #endif
 
+/* F$Fork from interpreted code (the whole program on the interpreter, HM_INTERP_ALL): the child (the Philips
+   logo program) must run as the top-level interpreted program, getting its own signals, and its F$Exit jumps
+   straight out of the interpreter (os9.c's child_exit). So put the parent's whole interpreter state aside
+   first, and bring it back once the child has gone. */
+extern int m68ki_remaining_cycles, m68ki_initial_cycles;
+static struct {
+    int saved, running, done, nest_depth, rte_requested, rem, init, sigq_n;
+    unsigned char ctx[4096];
+} parent_state;
+static struct { int pending, active; uint32_t sig, handler, data; Cpu saved; unsigned saved_pc; } parent_isig;
+static struct { uint32_t sig, handler, data; } parent_sigq[SIGQ];
+
+void interp_fork_begin(void)
+{
+    if (!running || m68k_context_size() > sizeof parent_state.ctx) return;   /* parent not interpreted: nothing to keep */
+    m68k_get_context(parent_state.ctx);
+    parent_state.rem = m68ki_remaining_cycles;
+    parent_state.init = m68ki_initial_cycles;
+    parent_state.running = running;
+    parent_state.done = done;
+    parent_state.nest_depth = nest_depth;
+    parent_state.rte_requested = rte_requested;
+    parent_state.sigq_n = sigq_n;
+    memcpy(&parent_isig, &isig, sizeof isig);
+    memcpy(parent_sigq, sigq, sizeof sigq);
+    parent_state.saved = 1;
+    running = done = nest_depth = rte_requested = sigq_n = 0;
+    memset(&isig, 0, sizeof isig);
+}
+
+void interp_fork_end(void)
+{
+    if (!parent_state.saved) return;
+    m68k_set_context(parent_state.ctx);
+    m68ki_remaining_cycles = parent_state.rem;
+    m68ki_initial_cycles = parent_state.init;
+    running = parent_state.running;
+    done = parent_state.done;
+    nest_depth = parent_state.nest_depth;
+    rte_requested = parent_state.rte_requested;
+    sigq_n = parent_state.sigq_n;
+    memcpy(&isig, &parent_isig, sizeof isig);
+    memcpy(sigq, parent_sigq, sizeof sigq);
+    parent_state.saved = 0;
+}
+
 /* A nested call: interpreted code is running (a streamed module), a signal arrives, the game's
    recompiled handler calls a routine in another streamed module. Musashi isn't re-entrant, but its whole
    state is its context plus two cycle counters, so save those, run the inner call, and put them back:
    the outer code then carries on exactly where it was. */
-extern int m68ki_remaining_cycles, m68ki_initial_cycles;
 
 static void interp_call_nested(uint32_t addr)
 {

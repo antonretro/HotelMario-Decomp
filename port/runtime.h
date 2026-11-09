@@ -9,6 +9,7 @@ extern int trace;
 extern unsigned press_every;
 extern int headless;                  /* --headless: no window (for automated runs) */
 extern int full_frame;                /* --full-frame: show all 280 lines, not the TV-visible area */
+extern unsigned quit_at_ms;           /* --quit-at <ms>: end the run then (0 = never) */
 
 #include <stdio.h>
 #include "m68k.h"
@@ -33,6 +34,8 @@ RecompFn recomp_lookup(uint32_t addr);
 void interp_call(uint32_t addr);   /* interp.c: run non-recompiled code on Musashi */
 void interp_dump_history(void);    /* --trace: last interpreted instructions */
 void interp_reset(void);         /* after a child program left the interpreter via F$Exit */
+void interp_fork_begin(void);    /* F$Fork from interpreted code: keep the parent's interpreter state aside */
+void interp_fork_end(void);      /* ...and bring it back once the child has gone */
 void interp_signal(uint32_t sig, uint32_t handler, uint32_t data);  /* signal for interpreted code */
 void interp_rte(void);             /* F$RTE from an interpreted intercept routine */
 void cdrtos_get_intercept(uint32_t *handler, uint32_t *data);

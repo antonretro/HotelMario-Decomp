@@ -28,6 +28,7 @@ extern const struct { uint32_t addr; RecompFn fn; const char *name; } recomp_tab
 extern const int recomp_count;
 
 const char *fs_root = "build/eu/fs";
+unsigned quit_at_ms;                /* --quit-at <ms>: end the run then (tests on consoles and emulators) */
 int trace = 0;
 uint32_t watch_pc = 0xFFFFFFFFu;
 
@@ -50,9 +51,15 @@ static const char *name_of(uint32_t addr)
 RecompFn recomp_lookup(uint32_t addr);
 #define lookup recomp_lookup
 
+/* HM_INTERP_ALL=1 (or a release build, which has no recompiled code: port/release/norecomp.c): run the whole program on the
+   interpreter, read from the disc at start-up, so the exe carries none of the game's code */
+static int interp_all = -1;
+
 RecompFn recomp_lookup(uint32_t addr)
 {
     int lo = 0, hi = recomp_count - 1;
+    if (interp_all < 0) interp_all = getenv("HM_INTERP_ALL") != 0;
+    if (interp_all) return 0;
     while (lo <= hi) {
         int mid = (lo + hi) / 2;
         if (recomp_table[mid].addr == addr) return recomp_table[mid].fn;
@@ -139,10 +146,17 @@ int main(int argc, char **argv)
     int i, given_root = 0;
     void f_000052(void); /* _cstart */
 
+#if defined(__3DS__) || defined(GEKKO)
 #ifdef __3DS__
-    {   /* no command line on the 3DS: test options (--dump-every, --input, ...) can come from args.txt */
+#define APP_DIR "sdmc:/3ds/HotelMario"
+#else
+#define APP_DIR "sd:/apps/hotelmario"
+    void ogc_early_init(void);
+    ogc_early_init();                   /* the TV, the CD-i memory and the SD card, before reading args.txt */
+#endif
+    {   /* no command line on the 3DS / Wii: test options (--dump-every, --input, ...) can come from args.txt */
         static char text[4096], *av[64];
-        FILE *f = fopen("sdmc:/3ds/HotelMario/args.txt", "r");
+        FILE *f = fopen(APP_DIR "/args.txt", "r");
         if (f) {
             size_t n = fread(text, 1, sizeof text - 1, f);
             char *p = text;
@@ -152,7 +166,7 @@ int main(int argc, char **argv)
             av[argc++] = "HotelMario";
             for (p = strtok(text, " \r\n\t"); p && argc < 63; p = strtok(0, " \r\n\t")) av[argc++] = p;
             argv = av;
-            if (freopen("sdmc:/3ds/HotelMario/log.txt", "w", stderr)) setvbuf(stderr, 0, _IOLBF, 0);
+            if (freopen(APP_DIR "/log.txt", "w", stderr)) setvbuf(stderr, 0, _IOLBF, 0);
         }
     }
 #endif
@@ -173,6 +187,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--wav") && i + 1 < argc) wav_path = argv[++i];
         else if (!strcmp(argv[i], "--full-frame")) full_frame = 1;
         else if (!strcmp(argv[i], "--input") && i + 1 < argc) input_script = argv[++i];
+        else if (!strcmp(argv[i], "--quit-at") && i + 1 < argc) quit_at_ms = (unsigned)atoi(argv[++i]);
         else { fs_root = argv[i]; given_root = 1; }
     }
     find_game_files(given_root);            /* gamefiles.c: so double-clicking hotel.exe works */
@@ -232,8 +247,13 @@ int main(int argc, char **argv)
     if (trace) atexit(display_report);
 
     fprintf(stderr, "starting cdi_hotel: data 0x%x-0x%x, stack top 0x%x\n", DATA_BASE, DATA_BASE + memsize, cpu.a[7]);
-    PUSH32(0xFFFFFFFFu);                    /* return address for _cstart; it should exit via F$Exit */
-    f_000052();
+    if (recomp_lookup(0x52)) {
+        PUSH32(0xFFFFFFFFu);                /* return address for _cstart; it should exit via F$Exit */
+        f_000052();
+    } else {
+        fprintf(stderr, "running the program on the interpreter\n");
+        interp_call(0x52);
+    }
     fprintf(stderr, "_cstart returned (d0=%x)\n", cpu.d[0]);
     return 0;
 }
