@@ -18,3 +18,6 @@ saves/
 # progress site: hosted on Anthony's own website, kept out of the repository
 site/
 *.o
+
+# game audio pulled from your own disc by tools/extract_audio.py (a junction to D: on Anthony's PC)
+extracted_audio

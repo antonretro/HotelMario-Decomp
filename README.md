@@ -94,6 +94,12 @@ logo, game speed, and smooth frame pacing (on by default).
 - `python -I tools/hotel_sweep.py` visits each hotel through a save and RESTORE, and leaves a contact sheet
   of frames per hotel in `build/port/`.
 
+**Audio extraction:** `python -I tools/extract_audio.py --mp3` decodes every audio stream on the disc
+(port/audio.c's ADPCM decoder, `tools/cdi_adpcm.c`) into separate clips in `extracted_audio/` (git-ignored):
+the cutscene soundtracks in `voices/`, each music channel in `music/`. `python -I tools/name_voice_lines.py`
+(needs faster-whisper) then cuts the cutscenes into one file per spoken line, named after what's said, with
+a list in `voices/lines.txt`. The clips are game audio from your own disc: never commit or share them.
+
 ## Notes
 
 - [NOTES.md](NOTES.md): file formats, compiler identification, and how each port problem was solved.
