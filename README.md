@@ -1,13 +1,16 @@
-# Hotel Mario decomp
+# Hotel Mario port
 
-A decompilation of **Hotel Mario** (Fantasy Factory / Philips, CD-i, 1994), plus a BIOS-free PC port that
-runs the game from your own disc image. **The port is playable from the title screen to the ending credits.**
+A BIOS-free port of **Hotel Mario** (Fantasy Factory / Philips, CD-i, 1994) that runs the game from your own
+disc image. **It's playable from the title screen to the ending credits**, on PC and on the Nintendo 3DS.
+
+**[Download for Windows](https://github.com/antonretro/HotelMario-Decomp/releases/latest)**: a setup program
+that asks for your disc image and makes the game from it (see [Releases](#releases)).
 
 ## Bring your own disc
 
 This repository contains **no game data**: no disc image, no extracted files, no game code. You supply your
-own copy of the game, either the **USA** or the **European** release, and the tools extract everything
-they need from it into `build/` and `asm/`. Both folders are git-ignored and must never be committed.
+own copy of the game (the **European** release for now), and the tools extract everything they need from it
+into `build/` and `asm/`. Both folders are git-ignored and must never be committed.
 
 | Disc image | SHA1 of the `.bin` | Status |
 |---|---|---|
@@ -17,8 +20,8 @@ they need from it into `build/` and `asm/`. Both folders are git-ignored and mus
 
 ## What's here
 
-There are two separate goals. The port is how you play the game today; the decompilation is the long-term
-job of rebuilding readable source code. The port doesn't depend on it.
+The port is the project: it's how you play the game. Alongside it is an optional research side project, a
+decompilation that rebuilds readable source code. The port doesn't depend on it.
 
 - **PC port (a static recompilation).** `tools/recomp.py` translates the game's 68000 code into C ahead of
   time, so the original game logic runs natively. `port/` is the runtime around it:
@@ -30,7 +33,7 @@ job of rebuilding readable source code. The port doesn't depend on it.
   - an SDL2 window with keyboard and gamepad input, and a settings menu
 
   Code that the game streams from the disc runs on the Musashi 68000 interpreter.
-- **Matching decompilation.** The original program `cdi_hotel` is disassembled and reassembles
+- **Decompilation (optional research).** The original program `cdi_hotel` is disassembled and reassembles
   byte-for-byte (`tools/build.py`). Functions are being rewritten as K&R C in `src/` (Microware OS-9/68000
   C 3.2, the compiler the game was built with). About 14% of the program is in C so far. The C is
   equivalent to the original but doesn't yet compile to identical bytes, because that needs the original
