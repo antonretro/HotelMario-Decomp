@@ -1,7 +1,8 @@
-# Hotel Mario port
+# Hotel Mario: static recompilation port and decompilation
 
-A BIOS-free port of **Hotel Mario** (Fantasy Factory / Philips, CD-i, 1994) that runs the game from your own
-disc image. **It's playable from the title screen to the ending credits**, on PC and on the Nintendo 3DS.
+A static recompilation port of **Hotel Mario** (Fantasy Factory / Philips, CD-i, 1994) that runs the game
+from your own disc image without a CD-i BIOS, plus a decompilation in progress. The port came first:
+**it's playable from the title screen to the ending credits**, on PC and on the Nintendo 3DS.
 
 **[Download for Windows](https://github.com/antonretro/HotelMario-Decomp/releases/latest)**: a setup program
 that asks for your disc image and makes the game from it (see [Releases](#releases)).
@@ -20,11 +21,16 @@ into `build/` and `asm/`. Both folders are git-ignored and must never be committ
 
 ## What's here
 
-The port is the project: it's how you play the game. Alongside it is an optional research side project, a
-decompilation that rebuilds readable source code. The port doesn't depend on it.
+Two parts. The port, done first, is how you play the game. The decompilation, still going, rebuilds the
+game's readable source code. The port doesn't depend on it.
 
-- **PC port (a static recompilation).** `tools/recomp.py` translates the game's 68000 code into C ahead of
-  time, so the original game logic runs natively. `port/` is the runtime around it:
+- **The port.** `port/` rebuilds the CD-i around the game's own code. That code runs one of two ways:
+  - **interpreted:** the game's program, read from your disc, runs unchanged on the Musashi 68000
+    interpreter. The public PC release works this way, so it carries none of the game's code.
+  - **recompiled:** `tools/recomp.py` translates the game's 68000 code into C ahead of time, so it runs
+    natively. That's needed for speed on slower machines like the 3DS and DS, and for your own builds.
+
+  What `port/` provides:
   - OS-9 system calls and CD-RTOS disc streaming, in place of the CD-i operating system (no BIOS needed)
   - the CD-i video chip (both image planes, palettes, DYUV, run-length animation, transparency, mixing,
     fades)
@@ -32,8 +38,8 @@ decompilation that rebuilds readable source code. The port doesn't depend on it.
   - the CD-i's non-volatile memory, for saves
   - an SDL2 window with keyboard and gamepad input, and a settings menu
 
-  Code that the game streams from the disc runs on the Musashi 68000 interpreter.
-- **Decompilation (optional research).** The original program `cdi_hotel` is disassembled and reassembles
+  Code that the game streams from the disc always runs on the interpreter.
+- **Decompilation (in progress).** The original program `cdi_hotel` is disassembled and reassembles
   byte-for-byte (`tools/build.py`). Functions are being rewritten as K&R C in `src/` (Microware OS-9/68000
   C 3.2, the compiler the game was built with). About 14% of the program is in C so far. The C is
   equivalent to the original but doesn't yet compile to identical bytes, because that needs the original
@@ -50,8 +56,19 @@ decompilation that rebuilds readable source code. The port doesn't depend on it.
 | Smoothness | Even frame pacing (48–50 pictures a second in play), no flicker or flashes between scenes |
 
 Every hotel and the ending have been checked with scripted test runs; a complete play-through by hand
-hasn't been done yet. Next: an optional smooth-enemies setting (with a Classic setting for the original
-look), USA disc support, then 3DS and Wii builds.
+hasn't been done yet.
+
+### Platforms
+
+| Platform | Status |
+|---|---|
+| PC (Windows) | Playable start to finish. Released: [download](https://github.com/antonretro/HotelMario-Decomp/releases/latest) |
+| Nintendo 3DS | Plays on a real New 3DS (homebrew: `.3dsx`, or a `.cia` for the HOME Menu). Not in the release yet |
+| Nintendo DS | Plays in the melonDS emulator; not tested on a real DS yet |
+| Wii, Wii U | Builds, not tested yet |
+| Android | In progress: starts, but shows a black screen |
+
+Next: USA disc support, and an optional smooth-enemies setting (with a Classic setting for the original look).
 
 ## Building
 
@@ -72,6 +89,10 @@ python -I tools/build_port.py
 1. `setup.py` checks your image, extracts it to `build/eu/fs` and generates `asm/`.
 2. `build.py` reassembles `cdi_hotel` and checks it matches the original.
 3. `build_port.py` builds `build/port/hotel.exe`.
+
+Other platforms, each needing its own toolchain (devkitPro for 3DS, Wii and Wii U, BlocksDS for the DS):
+`tools/build_3ds.py`, `tools/build_ds.py`, `tools/build_ogc.py` (Wii), `tools/build_wiiu.py`. These builds
+include the recompiled game code, so they're for your own use only.
 
 Run the exe from the repository folder, or pass the path of the extracted files:
 `hotel.exe path\to\build\eu\fs`. Saves and `hotel_settings.ini` are written to the current folder.
