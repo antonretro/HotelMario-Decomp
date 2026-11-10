@@ -228,3 +228,6 @@ SystemControlInfo:
     socket: 0x0004013000002e02
     spi: 0x0004013000002302
     ssl: 0x0004013000002f02
+
+RomFs:
+  RootPath: $(APP_ROMFS)

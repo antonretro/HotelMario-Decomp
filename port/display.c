@@ -672,7 +672,10 @@ unsigned frame_syncs;
 int display_frame_due(unsigned *seen, unsigned long *last_ms)
 {
     unsigned long now = (unsigned long)(clock() * 1000 / CLOCKS_PER_SEC);
-    if (*seen != frame_syncs || now - *last_ms >= 100) {
+    /* Some original routines update video memory without waiting on line_event.
+       Sample those at the selected field rate instead of silently limiting them to 10 FPS. */
+    unsigned rate = (unsigned)field_rate();
+    if (*seen != frame_syncs || (now - *last_ms) * rate >= 1000ul) {
         *seen = frame_syncs;
         *last_ms = now;
         return 1;

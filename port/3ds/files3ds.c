@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 extern const char *fs_root;
 
@@ -18,7 +19,13 @@ void find_game_files(int given)
 {
     FILE *f;
     if (given) return;
+    mkdir("sdmc:/3ds", 0777);
+    mkdir(BASE, 0777);
     chdir(BASE);
+    if (R_SUCCEEDED(romfsInit())) {
+        f = fopen("romfs:/game/cdi_hotel", "rb");
+        if (f) { fclose(f); fs_root = "romfs:/game"; return; }
+    }
     fs_root = BASE "/game";
     if ((f = fopen(BASE "/game/cdi_hotel", "rb"))) { fclose(f); return; }
     gfxInitDefault();                   /* runs before window_init: set up a screen for the message */

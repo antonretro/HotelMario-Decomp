@@ -85,7 +85,7 @@ clock_t port_clock(void)
    your disc's own title screen) or, after SELECT, the info screen: these messages and the speed line. The screen
    stays in the text console's format (RGB565, one buffer), so either can be drawn at any time. */
 static char notes[1024];
-static int info_shown = 1;
+static int info_shown = 0;
 static u8 *bottom_pic;
 
 void window_note(const char *fmt, ...)
@@ -120,7 +120,8 @@ static void show_picture(void)
 
 static void load_picture(void)
 {
-    FILE *f = fopen("sdmc:/3ds/HotelMario/bottom.bin", "rb");
+    FILE *f = fopen("romfs:/bottom.bin", "rb");
+    if (!f) f = fopen("sdmc:/3ds/HotelMario/bottom.bin", "rb");
     if (!f) return;
     bottom_pic = malloc(320 * 240 * 3);
     if (bottom_pic && fread(bottom_pic, 1, 320 * 240 * 3, f) != 320 * 240 * 3) { free(bottom_pic); bottom_pic = 0; }
@@ -135,13 +136,15 @@ void window_init(void)
     gfxInitDefault();
     gfxSetDoubleBuffering(GFX_TOP, true);
     consoleInit(GFX_BOTTOM, 0);
+    freopen("sdmc:/3ds/HotelMario/runtime.log", "w", stdout);
+    freopen("sdmc:/3ds/HotelMario/diagnostics.log", "w", stderr);
     window_note("Hotel Mario (CD-i) - 3DS port\nPort by Anton Retro\n\nA = button 1, B = button 2\n"
                 "SELECT = this screen / picture\nSTART + SELECT = quit\n\n");
     audio_init();
     audio_set_volume(settings.volume);
     start_drawer();
     load_picture();
-    if (bottom_pic && audio_ok) show_picture();   /* a sound problem keeps the info screen up, so it's seen */
+    if (bottom_pic) show_picture();
 }
 
 static void present(const uint32_t *fb)
@@ -172,10 +175,6 @@ static void read_input(void)
     hidScanInput();
     k = hidKeysHeld();
     if ((k & KEY_START) && (k & KEY_SELECT)) exit(0);
-    if ((hidKeysDown() & KEY_SELECT) && !(k & KEY_START) && bottom_pic) {   /* flip the bottom screen */
-        if (info_shown) show_picture();
-        else show_info();
-    }
     if (k & KEY_LEFT) dx -= 3;      /* KEY_LEFT etc. cover both the d-pad and the circle pad */
     if (k & KEY_RIGHT) dx += 3;
     if (k & KEY_UP) dy -= 3;

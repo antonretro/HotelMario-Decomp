@@ -39,11 +39,11 @@ static void stop(const char *msg)
     exit(1);
 }
 
-void find_game_files(int given)
+void ogc_early_init(void)              /* the TV, the CD-i memory, the SD card; safe to call again */
 {
-    static const char *bases[] = { "sd:/apps/hotelmario", "usb:/apps/hotelmario" };
-    static char root[64];
-    int i;
+    static int done;
+    if (done) return;
+    done = 1;
     ogc_video_init();
 #ifdef HW_RVL
     /* the CD-i memory goes in MEM2, the Wii's 64 MB bank: MEM1 (24 MB) holds the program */
@@ -54,6 +54,14 @@ void find_game_files(int given)
     if (!(RAM = malloc(RAM_SIZE))) stop("Not enough memory for the game (GameCube support is not finished).");
 #endif
     if (!fatInitDefault()) stop("No SD card (or USB stick) found.");
+}
+
+void find_game_files(int given)
+{
+    static const char *bases[] = { "sd:/apps/hotelmario", "usb:/apps/hotelmario" };
+    static char root[64];
+    int i;
+    ogc_early_init();
     if (given) return;
     for (i = 0; i < 2; i++)
         if (has_game(bases[i])) {

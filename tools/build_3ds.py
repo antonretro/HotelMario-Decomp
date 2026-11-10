@@ -9,6 +9,7 @@ import concurrent.futures
 import glob
 import os
 import subprocess
+import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -75,6 +76,12 @@ def build_cia(elf):
     The ones in use were cut from frames of the port: the title screen's logo, sky and scenery, with Mario's
     walking and jumping sprites from a stage."""
     art = os.path.join(ROOT, "build", "cia")
+    romfs = os.path.join(ROOT, "build", "romfs")
+    data = os.path.join(ROOT, "build", "eu", "fs")
+    if not os.path.isfile(os.path.join(data, "cdi_hotel")):
+        sys.exit("Extract game data to build/eu/fs before building the self-contained CIA")
+    shutil.copytree(data, os.path.join(romfs, "game"), dirs_exist_ok=True)
+    shutil.copy2(os.path.join(art, "bottom.bin"), os.path.join(romfs, "bottom.bin"))
     need = [os.path.join(art, f) for f in ("banner.png", "icon.png", "banner.wav")]
     missing = [f for f in need if not os.path.exists(f)]
     if missing:
@@ -83,10 +90,10 @@ def build_cia(elf):
     makerom = os.path.join(DKP, "tools", "ctr_extra", "makerom.exe")
     bnr, icn, cia = (os.path.join(art, f) for f in ("banner.bnr", "icon.icn", "HotelMario.cia"))
     subprocess.run([bt, "makebanner", "-i", need[0], "-a", need[2], "-o", bnr], check=True)
-    subprocess.run([bt, "makesmdh", "-s", "Hotel Mario", "-l", "Hotel Mario (CD-i) - bring your own disc",
+    subprocess.run([bt, "makesmdh", "-s", "Hotel Mario", "-l", "Hotel Mario (CD-i) - self-contained",
                     "-p", "Anton Retro", "-i", need[1], "-o", icn], check=True)
     subprocess.run([makerom, "-f", "cia", "-o", cia, "-elf", elf, "-rsf", os.path.join(ROOT, "port", "3ds", "app.rsf"),
-                    "-icon", icn, "-banner", bnr, "-exefslogo", "-target", "t"], check=True)
+                    "-icon", icn, "-banner", bnr, "-exefslogo", "-target", "t", "-DAPP_ROMFS=" + romfs], check=True)
     print("built", cia, os.path.getsize(cia) // 1024, "KB")
 
 

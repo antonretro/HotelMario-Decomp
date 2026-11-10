@@ -151,6 +151,7 @@ void window_tick(void)
 {
     unsigned long now = (unsigned long)port_clock();
     os9_tick();
+    if (quit_at_ms && now >= quit_at_ms) { fprintf(stderr, "quit at %lu ms (--quit-at)\n", now); exit(0); }
     if (now < next_frame_ms) return;
     next_frame_ms = now - next_frame_ms < 20 ? next_frame_ms + 20 : now + 20;   /* 50 pictures a second */
     read_input();

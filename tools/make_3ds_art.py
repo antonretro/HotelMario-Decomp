@@ -45,15 +45,9 @@ def bottom(title, walk, jump):
 
 
 def banner(title, walk, jump):
+    """Home-menu banner: the HOTEL MARIO logo on its sky, nothing else (no characters, no scenery)."""
     top = title.crop((24, 8, 360, 104))
-    ground = title.crop((24, 189, 360, 241))
-    comp = Image.new("RGB", (336, 148))
-    comp.paste(top, (0, 0))
-    comp.paste(ground, (0, 96))
-    ban = comp.resize((256, 128), Image.LANCZOS).convert("RGBA")
-    ban.alpha_composite(walk, (34, 92))
-    ban.alpha_composite(jump, (190, 72))
-    return ban.convert("RGB")
+    return top.resize((256, 128), Image.LANCZOS).convert("RGB")
 
 
 def icon(title, jump):
